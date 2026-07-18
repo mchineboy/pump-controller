@@ -41,6 +41,17 @@ Tracked on GitHub milestone **Phase 4**, in design-doc order:
 
 Product branding is use-case agnostic: **Fluid Dispensing Controller**.
 
+## Multi-pump model
+
+- **Paths:** `pump_1` … `pump_3` (compile-time pins in `Config.h` / `platformio.ini`).
+- **Setting:** `GlobalSettings.pumpCount` (NVS), default `1`. Diagnostics UI sets 1–3.
+- **Binding:** each `FluidProfile` has `pump_id`; dispense/calibrate select that path’s STEP/DIR/EN (+ optional valve).
+- **Motion:** one global busy operation — no concurrent STEP generation in this cut.
+- **TMC UART:** shared RX/TX; per-driver address `0b00` / `0b01` / `0b10`.
+- **Safety:** ESTOP and safe-output paths stop/disable **all** configured pumps.
+
+Pin tables and strapping notes: [HARDWARE.md](HARDWARE.md), [WIRING.md](WIRING.md), root [README.md](../README.md).
+
 ## Durable storage / flash survival
 
 | Data | Location | Survives `upload` | Survives `uploadfs` | Survives OTA app | Cleared by |

@@ -28,3 +28,23 @@ Puschmann’s NEMA 17 peristaltic pump and this ESP32 controller.
 | Sensing | Temperature sensor | DS18B20 1-Wire digital thermometer | 1 | Optional | GPIO 23 with 4.7 kΩ pull-up to 3.3 V |
 | Sensing | Flow sensor | Hall-effect turbine / pulse flow meter (e.g. YF-S201 class) | 1 | Optional | Pulse to GPIO 4; set pulses/liter from datasheet |
 | Enclosure | Controller enclosure | Ventilated enclosure for ESP32, driver, buck converter, terminals, and optional valve driver | 1 | Recommended | Keep liquid plumbing physically separated from electronics |
+
+## Multi-pump builds (2–3 paths)
+
+Firmware supports up to **three** sequential pump paths (`pump_count` in Diagnostics).
+For each **additional** path beyond the first, plan on:
+
+| Item | Qty per extra path | Notes |
+|------|--------------------|-------|
+| NEMA 17 stepper | +1 | Same spec as primary motor |
+| TMC2209 StepStick | +1 | Unique UART address (`0b01`, `0b10`); share RX/TX with pump 1 |
+| Printed pump set + bearings + tubing | +1 set | Dedicate tubing per fluid |
+| Motor supply capacitor | +1 recommended | Close to each driver’s VMOT |
+| Optional valve + driver | +1 | Per-path valve GPIOs: 33 / 21 / 12 |
+
+**Power:** the stock 12 V / 3 A adapter is sized for **one** motor running at a time
+(firmware does not run paths concurrently). Upsize the PSU only if you later enable
+true concurrent motion or other heavy loads.
+
+Pin map: [HARDWARE.md](HARDWARE.md#multi-pump--additional-fluid-paths-optional),
+[WIRING.md](WIRING.md).
