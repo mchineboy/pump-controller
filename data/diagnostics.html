@@ -13,6 +13,7 @@
       <a href="/">Dispense</a>
       <a href="/calibration.html">Calibration</a>
       <a href="/profiles.html">Profiles</a>
+      <a href="/configuration.html">Configuration</a>
       <a href="/diagnostics.html" aria-current="page">Diagnostics</a>
       <a href="/hardware.html">Hardware</a>
     </nav>
@@ -20,220 +21,53 @@
 
   <main>
     <section class="panel">
-      <h1>Settings</h1>
-      <form id="settings-form">
-        <label>
-          Device name
-          <input id="device-name" type="text" required>
-        </label>
-        <label class="checkbox">
-          <input id="logging" type="checkbox">
-          Event logging enabled
-        </label>
-        <label class="checkbox">
-          <input id="web-auth" type="checkbox">
-          Require local password (admin / secrets.h)
-        </label>
-        <label class="checkbox">
-          <input id="valve-hw" type="checkbox">
-          Valve hardware present (GPIO valve driver interface)
-        </label>
-        <fieldset>
-          <legend>Multi-pump (optional)</legend>
-          <label>
-            Pump count
-            <select id="pump-count">
-              <option value="1">1 — single path (default)</option>
-              <option value="2">2 — second STEP/DIR/EN path</option>
-              <option value="3">3 — third STEP/DIR/EN path</option>
-            </select>
-          </label>
-          <label class="checkbox">
-            <input id="valve2-hw" type="checkbox">
-            Pump 2 valve hardware present (GPIO 21)
-          </label>
-          <label class="checkbox">
-            <input id="valve3-hw" type="checkbox">
-            Pump 3 valve hardware present (GPIO 12)
-          </label>
-          <p class="meta">
-            Pump 2: STEP 5, DIR 13, ENABLE 14 (TMC addr <code>0b01</code>).
-            Pump 3: STEP 22, DIR 15, ENABLE 2 (TMC addr <code>0b10</code>).
-            Shared UART RX/TX 16/17. Motion is sequential (one path at a time).
-            GPIO 15/12 are strapping pins — keep external circuitry quiet at boot.
-          </p>
-        </fieldset>
-        <label class="checkbox">
-          <input id="estop-en" type="checkbox">
-          Emergency stop input enabled (GPIO 32, active low to GND)
-        </label>
-        <fieldset>
-          <legend>TMC2209 UART (optional)</legend>
-          <label class="checkbox">
-            <input id="driver-uart" type="checkbox">
-            Enable UART config (RX GPIO 16, TX GPIO 17)
-          </label>
-          <label>
-            Run current (mA)
-            <input id="tmc-run-ma" type="number" min="100" max="2000" step="50">
-          </label>
-          <label>
-            Hold current (mA)
-            <input id="tmc-hold-ma" type="number" min="0" max="2000" step="50">
-          </label>
-          <label>
-            Microsteps
-            <select id="tmc-microsteps">
-              <option value="8">8</option>
-              <option value="16">16</option>
-              <option value="32">32</option>
-              <option value="64">64</option>
-              <option value="128">128</option>
-              <option value="256">256</option>
-            </select>
-          </label>
-          <label class="checkbox">
-            <input id="tmc-stealth" type="checkbox">
-            StealthChop (quiet)
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend>Reservoir level sensor (optional)</legend>
-          <label class="checkbox">
-            <input id="reservoir-en" type="checkbox">
-            Enable reservoir empty input (GPIO 34)
-          </label>
-          <label class="checkbox">
-            <input id="reservoir-empty-low" type="checkbox">
-            Empty signal is active-low
-          </label>
-          <label>
-            Empty policy
-            <select id="reservoir-policy">
-              <option value="warn">Warn only</option>
-              <option value="block">Block new dispense/calibrate</option>
-              <option value="fault">Fault active operations</option>
-            </select>
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend>Load cell / HX711 (optional)</legend>
-          <label class="checkbox">
-            <input id="loadcell-en" type="checkbox">
-            Enable load cell (DT GPIO 19, SCK GPIO 18)
-          </label>
-          <label>
-            Fluid density (g/mL) for ml estimate
-            <input id="fluid-density" type="number" min="0.1" max="5" step="0.01" value="1">
-          </label>
-          <label>
-            Known mass for scale calibration (g)
-            <input id="loadcell-known-g" type="number" min="1" max="5000" step="0.1" value="100">
-          </label>
-          <div class="actions">
-            <button type="button" id="loadcell-tare-btn">Tare</button>
-            <button type="button" id="loadcell-cal-btn">Calibrate with known mass</button>
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>Temperature (optional DS18B20)</legend>
-          <label class="checkbox">
-            <input id="temp-en" type="checkbox">
-            Enable temperature sensor (GPIO 23, 1-Wire)
-          </label>
-          <label>
-            Warn below (°C)
-            <input id="temp-lo" type="number" step="0.1" value="5">
-          </label>
-          <label>
-            Warn above (°C)
-            <input id="temp-hi" type="number" step="0.1" value="40">
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend>Flow sensor (optional)</legend>
-          <label class="checkbox">
-            <input id="flow-en" type="checkbox">
-            Enable pulse flow sensor (GPIO 4)
-          </label>
-          <label>
-            Pulses per liter (K-factor)
-            <input id="flow-ppl" type="number" min="1" step="1" value="450">
-          </label>
-          <div class="actions">
-            <button type="button" id="flow-reset-btn">Reset cumulative volume</button>
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>Dispense feedback (closed-loop)</legend>
-          <label>
-            Mode
-            <select id="fb-mode">
-              <option value="open_loop">Open-loop (step count only)</option>
-              <option value="verify_after">Verify after dispense</option>
-              <option value="stop_on_feedback">Stop on feedback target</option>
-            </select>
-          </label>
-          <label>
-            Source
-            <select id="fb-source">
-              <option value="auto">Auto (load cell, else flow)</option>
-              <option value="load_cell">Load cell</option>
-              <option value="flow">Flow sensor</option>
-            </select>
-          </label>
-          <label>
-            Tolerance (%)
-            <input id="fb-tol" type="number" min="0" max="50" step="0.1" value="5">
-          </label>
-          <label>
-            On miss
-            <select id="fb-on-miss">
-              <option value="warn">Warn only</option>
-              <option value="fault">Fault</option>
-            </select>
-          </label>
-          <p class="meta">Requires load cell and/or flow sensor enabled. Uses fluid density for mass→mL.</p>
-        </fieldset>
-        <div class="actions">
-          <button type="submit">Save settings</button>
-        </div>
-      </form>
-      <p id="settings-status" class="meta"></p>
-      <p id="estop-live" class="status-line">ESTOP: —</p>
-      <p id="tmc-live" class="status-line">TMC UART: —</p>
-      <p id="tmc-diag" class="status-line">Driver flags: —</p>
-      <p id="reservoir-live" class="status-line">Reservoir: —</p>
-      <p id="loadcell-live" class="status-line">Load cell: —</p>
-      <p id="temp-live" class="status-line">Temperature: —</p>
-      <p id="flow-live" class="status-line">Flow: —</p>
+      <h1>Diagnostics</h1>
+      <p class="meta">
+        Live health and sensor readings for troubleshooting.
+        To change installed hardware or behavior, use
+        <a href="/configuration.html">Configuration</a>.
+      </p>
+      <div class="status-grid">
+        <p id="system-live" class="status-card">System: —</p>
+        <p id="estop-live" class="status-card">Emergency stop: —</p>
+        <p id="tmc-live" class="status-card">Motor drivers: —</p>
+        <p id="tmc-diag" class="status-card">Driver flags: —</p>
+        <p id="reservoir-live" class="status-card">Source container: —</p>
+        <p id="loadcell-live" class="status-card">Scale: —</p>
+        <p id="temp-live" class="status-card">Temperature: —</p>
+        <p id="flow-live" class="status-card">Flow: —</p>
+      </div>
       <div class="actions">
-        <button type="button" id="inject-driver-fault-btn">Simulate driver fault</button>
-        <button type="button" id="ack-fault-btn">Acknowledge fault</button>
+        <button type="button" id="refresh-status-btn">Refresh readings</button>
       </div>
     </section>
 
     <section class="panel">
-      <h2>Factory reset</h2>
+      <h2>Fault controls</h2>
       <p class="meta">
-        Clears NVS hardware settings and all fluid calibrations/profiles, then reboots.
-        Web UI assets are not removed. Type <code>FACTORY_RESET</code> to confirm.
-        Normal firmware / filesystem uploads do <strong>not</strong> erase NVS.
+        Acknowledge a fault after correcting its cause. The simulation control is
+        intended for verifying stop behavior without disconnecting hardware.
       </p>
-      <label>
-        Confirmation
-        <input id="factory-confirm" type="text" autocomplete="off" placeholder="FACTORY_RESET">
-      </label>
       <div class="actions">
-        <button type="button" id="factory-reset-btn" class="danger">Factory reset</button>
+        <button type="button" id="ack-fault-btn">Acknowledge current fault</button>
+        <button type="button" id="inject-driver-fault-btn">Simulate motor-driver fault</button>
       </div>
-      <p id="factory-status" class="meta"></p>
+      <p id="fault-action-status" class="meta" role="status"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Flow session</h2>
+      <p class="meta">Reset only the accumulated flow reading for the current session. Sensor calibration is unchanged.</p>
+      <div class="actions">
+        <button type="button" id="flow-reset-btn">Reset accumulated volume</button>
+      </div>
+      <p id="flow-action-status" class="meta" role="status"></p>
     </section>
 
     <section class="panel">
       <h2>Event log</h2>
       <div class="actions">
-        <button type="button" id="refresh-log-btn">Refresh</button>
+        <button type="button" id="refresh-log-btn">Refresh log</button>
         <button type="button" id="clear-log-btn" class="danger">Clear log</button>
       </div>
       <ul id="event-list"></ul>

@@ -27,9 +27,9 @@ web UI around that design. See [docs/HARDWARE.md](docs/HARDWARE.md),
 ## Features
 
 - DHCP Wi-Fi (credentials in ignored `include/secrets.h`) with soft-AP fallback
-- Local web UI: dispense, calibration, profiles, diagnostics, hardware
+- Local web UI: dispense, calibration, profiles, configuration, diagnostics, hardware
 - Six generic fluid profiles (Fluid 1–6), renameable, with independent calibration
-- **Multi-pump:** 1–3 fluid paths (`pump_count` in Diagnostics; default **1**)
+- **Multi-pump:** 1–3 fluid paths (`pump_count` in Configuration; default **1**)
   - Each profile binds to `pump_1`, `pump_2`, or `pump_3`
   - Sequential motion only (one path at a time); ESTOP stops all paths
   - Shared TMC2209 UART bus (addresses `0b00` / `0b01` / `0b10`)
@@ -57,13 +57,13 @@ pio run -t uploadfs
    `pumpsetup` at http://192.168.4.1).
 
 Optional web auth uses `Secrets::kWebUsername` / `kWebPassword` when enabled on
-the Diagnostics page.
+the Configuration page.
 
 ### Enabling a second or third pump
 
 1. Wire the extra TMC2209 + NEMA 17 using the pump 2 / pump 3 pins below.
 2. Strap UART addresses (`0b01`, `0b10`) on the shared RX/TX lines.
-3. In **Diagnostics → Multi-pump**, set **Pump count** to 2 or 3.
+3. In **Configuration → Pumps**, set **Number of installed pumps** to 2 or 3.
 4. On **Profiles**, bind each fluid to the correct pump path, then calibrate.
 
 Full detail: [docs/HARDWARE.md](docs/HARDWARE.md#multi-pump--additional-fluid-paths-optional)
@@ -136,13 +136,13 @@ update the matching docs in the same PR.
 ## Notes
 
 - Calibration and hardware settings live in **NVS** and survive `upload` /
-  `uploadfs` / OTA. Clear them only via Diagnostics **Factory Reset** (or a full
+  `uploadfs` / OTA. Clear them only via Configuration **Factory Reset** (or a full
   `erase_flash`).
 - `pio run -t uploadfs` rewrites LittleFS (web UI). Event logs and on-device
   calibration *history files* on LittleFS are lost; profile calibrations in NVS
   are not.
 - ENABLE polarity assumes a typical TMC2209 active-low enable.
 - Valve, ESTOP, sensors, and multi-pump paths are off/inactive until enabled in
-  Diagnostics (`pump_count` defaults to 1).
+  Configuration (`pump_count` defaults to 1).
 - Size the 12 V supply for **one** NEMA 17 at a time unless you validate
   concurrent motor load (firmware does not run paths concurrently).
