@@ -2,6 +2,7 @@ import {
   exportConfig,
   fillProfileSelect,
   getProfile,
+  getSettings,
   importConfig,
   resetCalibration,
   updateProfile
@@ -15,8 +16,20 @@ const accelInput = document.getElementById("accel");
 const minInput = document.getElementById("min-ml");
 const maxInput = document.getElementById("max-ml");
 const dirInput = document.getElementById("dir-inv");
+const valveEnabled = document.getElementById("valve-enabled");
+const valveActiveHigh = document.getElementById("valve-active-high");
+const valvePreOpen = document.getElementById("valve-pre-open");
+const valvePostClose = document.getElementById("valve-post-close");
+const valveHwNote = document.getElementById("valve-hw-note");
 const calNote = document.getElementById("cal-note");
 const configStatus = document.getElementById("config-status");
+
+async function refreshValveHardwareNote() {
+  const settings = await getSettings();
+  valveHwNote.textContent = settings.valve_hardware_present
+    ? "Valve hardware is enabled in Diagnostics settings. Timing below applies when this profile uses the valve."
+    : "Valve hardware is currently disabled in Diagnostics settings. Enable it there before profile valve timing takes effect.";
+}
 
 async function loadProfile() {
   const profile = await getProfile(profileSelect.value);
@@ -27,9 +40,14 @@ async function loadProfile() {
   minInput.value = profile.limits.minimum_ml;
   maxInput.value = profile.limits.maximum_ml;
   dirInput.checked = profile.motor.direction_inverted;
+  valveEnabled.checked = profile.valve.enabled;
+  valveActiveHigh.checked = profile.valve.active_high;
+  valvePreOpen.value = profile.valve.pre_open_ms;
+  valvePostClose.value = profile.valve.post_motor_close_ms;
   calNote.textContent = profile.calibrated
     ? `Calibrated: ${profile.calibration.steps_per_ml.toFixed(2)} steps/mL`
     : "Not calibrated";
+  await refreshValveHardwareNote();
 }
 
 document.getElementById("profile-form").addEventListener("submit", async (event) => {
@@ -47,6 +65,12 @@ document.getElementById("profile-form").addEventListener("submit", async (event)
       limits: {
         minimum_ml: Number(minInput.value),
         maximum_ml: Number(maxInput.value)
+      },
+      valve: {
+        enabled: valveEnabled.checked,
+        active_high: valveActiveHigh.checked,
+        pre_open_ms: Number(valvePreOpen.value),
+        post_motor_close_ms: Number(valvePostClose.value)
       }
     });
     calNote.textContent = profile.calibrated

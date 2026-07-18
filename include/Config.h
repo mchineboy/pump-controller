@@ -37,4 +37,5 @@ constexpr float kDefaultMaxDispenseMl = 1000.0f;
 constexpr uint32_t kDriverDisableDelayMs = 500;
 constexpr float kCalibrationCvWarningPercent = 3.0f;
 constexpr int kProfilesSchemaVersion = 2;
+constexpr uint32_t kMaxValveTimingMs = 5000;
 }  // namespace Config

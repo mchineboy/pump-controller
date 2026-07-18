@@ -44,6 +44,14 @@ bool clampMotorSettings(MotorSettings& motor) {
     return true;
 }
 
+bool clampValveSettings(const ValveSettings& valve) {
+    if (valve.preOpenMs > Config::kMaxValveTimingMs ||
+        valve.postMotorCloseMs > Config::kMaxValveTimingMs) {
+        return false;
+    }
+    return true;
+}
+
 }  // namespace
 
 bool WebServerController::requireAuth(AsyncWebServerRequest* request) const {
@@ -88,6 +96,13 @@ void WebServerController::fillProfileJson(
 
     JsonObject valve = doc["valve"].to<JsonObject>();
     valve["enabled"] = profile.valve.enabled;
+    valve["active_high"] = profile.valve.activeHigh;
+    valve["pre_open_ms"] = profile.valve.preOpenMs;
+    valve["post_motor_close_ms"] = profile.valve.postMotorCloseMs;
+    valve["anti_drip_enabled"] = profile.valve.antiDripEnabled;
+    valve["anti_drip_reverse_steps"] = profile.valve.antiDripReverseSteps;
+    valve["anti_drip_speed_steps_per_second"] =
+        profile.valve.antiDripSpeedStepsPerSecond;
 
     JsonObject limits = doc["limits"].to<JsonObject>();
     limits["minimum_ml"] = profile.limits.minimumMl;
@@ -286,6 +301,16 @@ void WebServerController::registerApiRoutes() {
             JsonObjectConst valve = body["valve"].as<JsonObjectConst>();
             if (!valve.isNull()) {
                 profile.valve.enabled = valve["enabled"] | profile.valve.enabled;
+                profile.valve.activeHigh =
+                    valve["active_high"] | profile.valve.activeHigh;
+                profile.valve.preOpenMs =
+                    valve["pre_open_ms"] | profile.valve.preOpenMs;
+                profile.valve.postMotorCloseMs =
+                    valve["post_motor_close_ms"] | profile.valve.postMotorCloseMs;
+                if (!clampValveSettings(profile.valve)) {
+                    sendError(request, 400, "valve_settings_out_of_range");
+                    return;
+                }
             }
 
             if (!profiles_->save(profile)) {
@@ -638,9 +663,17 @@ void WebServerController::registerApiRoutes() {
                 return;
             }
             logger_->setEnabled(settings.loggingEnabled);
+            if (valve_ != nullptr) {
+                valve_->begin(
+                    PUMP_VALVE_PIN,
+                    settings.valveHardwarePresent,
+                    true
+                );
+            }
             JsonDocument doc;
             doc["saved"] = true;
             doc["web_auth_enabled"] = settings.webAuthEnabled;
+            doc["valve_hardware_present"] = settings.valveHardwarePresent;
             sendJson(request, 200, doc);
         }
     );
