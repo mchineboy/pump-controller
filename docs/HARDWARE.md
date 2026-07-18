@@ -5,8 +5,8 @@
 The printable peristaltic pump (housing, tube-pressure part, lid, and bearing
 holder/rotor) is **not** an original design of this repository.
 
-**Primary designer:** [Maximilian Puschmann](https://www.printables.com/@MaxPuschmann_1657997)  
-**Model:** [V2 — Nema 17 Peristaltic Pump / Water Pump / Measuring Pump](https://www.printables.com/model/1556845-v2-nema-17-peristaltic-pump-water-pump-measuring-p)  
+**Primary designer:** [Maximilian Puschmann](https://www.printables.com/@MaxPuschmann_1657997)
+**Model:** [V2 — Nema 17 Peristaltic Pump / Water Pump / Measuring Pump](https://www.printables.com/model/1556845-v2-nema-17-peristaltic-pump-water-pump-measuring-p)
 **Local copy of the author’s documentation:**
 [hardware/maximilian-puschmann-nema17-peristaltic-pump-v2.pdf](hardware/maximilian-puschmann-nema17-peristaltic-pump-v2.pdf)
 
@@ -28,8 +28,11 @@ mechanical design.
 | Motor supply | 12 V regulated DC supply |
 | Logic supply | 5 V buck converter feeding ESP32 5V/VIN |
 
-Full part list: [BOM.md](BOM.md).  
-Wiring diagrams and connection tables: [WIRING.md](WIRING.md).  
+Full part list: [BOM.md](BOM.md).
+Wiring diagrams and connection tables: [WIRING.md](WIRING.md).
+On the device, open **Hardware → View wiring diagram** (also linked from
+**Configuration → Pumps**) for a color-coded SVG of the active pump count and
+enabled options.
 Dry-side enclosure STEP models: [../cad/enclosure/](../cad/enclosure/)
 ([v1 monolithic](../cad/enclosure/v1/), [v2 sectional](../cad/enclosure/v2/)).
 

@@ -3,6 +3,11 @@
 Default pin map for the ELEGOO ESP32 Dev Board (`esp32dev`) and a BIGTREETECH
 TMC2209 V1.3 StepStick. Override pins in `platformio.ini` if your board differs.
 
+The on-device **Hardware** and **Configuration** pages include a **View wiring
+diagram** modal that draws the active pump count, valves, UART, ESTOP, and
+enabled sensors with color-coded signal lines. Treat that diagram as a live
+summary; this document remains the authoritative connection and safety guide.
+
 **Related:** [HARDWARE.md](HARDWARE.md) · [BOM.md](BOM.md)
 
 ## Safety before you power on

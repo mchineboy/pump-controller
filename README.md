@@ -28,6 +28,7 @@ web UI around that design. See [docs/HARDWARE.md](docs/HARDWARE.md),
 
 - DHCP Wi-Fi (credentials in ignored `include/secrets.h`) with soft-AP fallback
 - Local web UI: dispense, calibration, profiles, configuration, diagnostics, hardware
+  (includes a dynamic color-coded wiring diagram modal)
 - Six generic fluid profiles (Fluid 1–6), renameable, with independent calibration
 - **Multi-pump:** 1–3 fluid paths (`pump_count` in Configuration; default **1**)
   - Each profile binds to `pump_1`, `pump_2`, or `pump_3`
