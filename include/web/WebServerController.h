@@ -7,6 +7,7 @@
 #include "motor/TmcDriverController.h"
 #include "pump/PumpService.h"
 #include "safety/SafetyController.h"
+#include "sensors/LoadCellSensor.h"
 #include "sensors/ReservoirSensor.h"
 #include "storage/ProfileRepository.h"
 #include "storage/SettingsRepository.h"
@@ -23,7 +24,8 @@ public:
         SafetyController& safety,
         EventLogger& logger,
         TmcDriverController& tmc,
-        ReservoirSensor& reservoir
+        ReservoirSensor& reservoir,
+        LoadCellSensor& loadCell
     );
 
     void update();
@@ -38,11 +40,20 @@ private:
         const GlobalSettings& settings,
         JsonObject doc
     ) const;
+    void fillLoadCellSettingsJson(
+        const GlobalSettings& settings,
+        JsonObject doc
+    ) const;
     bool applyTmcFromBody(JsonObjectConst body, GlobalSettings& settings) const;
     bool applyReservoirFromBody(
         JsonObjectConst body,
         GlobalSettings& settings
     ) const;
+    bool applyLoadCellFromBody(
+        JsonObjectConst body,
+        GlobalSettings& settings
+    ) const;
+    void persistLoadCellCalibration();
 
     AsyncWebServer server_{80};
     AsyncEventSource events_{"/api/events"};
@@ -56,6 +67,7 @@ private:
     EventLogger* logger_ = nullptr;
     TmcDriverController* tmc_ = nullptr;
     ReservoirSensor* reservoir_ = nullptr;
+    LoadCellSensor* loadCell_ = nullptr;
 
     SystemState lastBroadcastState_ = SystemState::Booting;
     uint32_t lastProgressBroadcastMs_ = 0;

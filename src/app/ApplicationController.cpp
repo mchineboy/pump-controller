@@ -159,6 +159,24 @@ void ApplicationController::applyReservoirSettings(const GlobalSettings& setting
     );
 }
 
+void ApplicationController::applyLoadCellSettings(const GlobalSettings& settings) {
+    loadCell_.begin(PUMP_LOADCELL_DT_PIN, PUMP_LOADCELL_SCK_PIN);
+    loadCell_.configure(
+        settings.loadCellEnabled,
+        settings.loadCellScale,
+        settings.loadCellOffset
+    );
+    if (settings.loadCellEnabled && !loadCell_.isReady()) {
+        Serial.print("Load cell warning: ");
+        Serial.println(loadCell_.lastError());
+        JsonDocument fields;
+        fields["error"] = loadCell_.lastError();
+        logger_.log("loadcell_warning", fields);
+    } else if (settings.loadCellEnabled) {
+        logger_.log("loadcell_ok");
+    }
+}
+
 void ApplicationController::begin() {
     Serial.begin(115200);
     delay(200);
@@ -185,6 +203,7 @@ void ApplicationController::begin() {
 
     pump_.begin(stepper_, valve_, profiles_, safety_, logger_, tmc_, reservoir_);
     applyReservoirSettings(settings);
+    applyLoadCellSettings(settings);
     beginNetwork();
     web_.begin(
         pump_,
@@ -195,7 +214,8 @@ void ApplicationController::begin() {
         safety_,
         logger_,
         tmc_,
-        reservoir_
+        reservoir_,
+        loadCell_
     );
 
     logger_.log("boot");
@@ -204,6 +224,7 @@ void ApplicationController::begin() {
 
 void ApplicationController::loop() {
     safety_.update();
+    loadCell_.update();
     pump_.update();
     web_.update();
 }

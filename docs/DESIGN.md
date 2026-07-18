@@ -13,6 +13,7 @@ Source: project software design document (2026-07-18).
 
 ## Implemented
 
+### Phase 1–2
 - Six generic fluid profiles (Fluid 1–6), renameable per use case
 - Repeated calibration samples with averaging / CV warning (>3%)
 - Calibration history per profile
@@ -20,6 +21,22 @@ Source: project software design document (2026-07-18).
 - Optional local basic auth (`admin` / `secrets.h`)
 - Event logging
 - Configuration export / import
+
+### Phase 3 (complete)
+- Optional valve pre-open / post-close, anti-drip reverse
+- TMC2209 UART config + diagnostics
+- Physical ESTOP
+- Reservoir empty sensor (warn/block/fault)
+
+### Phase 4 (in progress)
+Tracked on GitHub milestone **Phase 4**, in design-doc order:
+1. Load-cell verification (HX711)
+2. Temperature monitoring
+3. Flow sensor
+4. Closed-loop dispensing
+5. Multi-pump support
+6. Automated mixing jobs
+7. Recipe engine (use-case agnostic)
 
 Product branding is use-case agnostic: **Fluid Dispensing Controller**.
 

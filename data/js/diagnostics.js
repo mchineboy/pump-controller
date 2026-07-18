@@ -1,10 +1,12 @@
 import {
   acknowledgeFault,
+  calibrateLoadCell,
   clearEventLog,
   getEventLog,
   getSettings,
   getStatus,
   injectDriverFault,
+  tareLoadCell,
   updateSettings
 } from "./api.js";
 import { connectStatusStream } from "./status-stream.js";
@@ -22,11 +24,15 @@ const tmcStealth = document.getElementById("tmc-stealth");
 const reservoirEn = document.getElementById("reservoir-en");
 const reservoirEmptyLow = document.getElementById("reservoir-empty-low");
 const reservoirPolicy = document.getElementById("reservoir-policy");
+const loadCellEn = document.getElementById("loadcell-en");
+const fluidDensity = document.getElementById("fluid-density");
+const loadCellKnownG = document.getElementById("loadcell-known-g");
 const settingsStatus = document.getElementById("settings-status");
 const estopLive = document.getElementById("estop-live");
 const tmcLive = document.getElementById("tmc-live");
 const tmcDiag = document.getElementById("tmc-diag");
 const reservoirLive = document.getElementById("reservoir-live");
+const loadCellLive = document.getElementById("loadcell-live");
 const eventList = document.getElementById("event-list");
 
 function renderEstop(status) {
@@ -67,10 +73,28 @@ function renderReservoir(status) {
     `Reservoir: ${level} · policy ${status.reservoir_empty_policy || "—"}${warn}`;
 }
 
+function renderLoadCell(status) {
+  if (!status.load_cell_enabled) {
+    loadCellLive.textContent = "Load cell: disabled";
+    return;
+  }
+  const ready = status.load_cell_ready ? "ready" : "not ready";
+  const grams = status.load_cell_grams == null
+    ? "—"
+    : `${Number(status.load_cell_grams).toFixed(2)} g`;
+  const ml = status.load_cell_ml == null
+    ? ""
+    : ` · ${Number(status.load_cell_ml).toFixed(2)} mL`;
+  loadCellLive.textContent =
+    `Load cell: ${ready} · ${grams}${ml}` +
+    (status.load_cell_error ? ` · ${status.load_cell_error}` : "");
+}
+
 function renderStatus(status) {
   renderEstop(status);
   renderTmc(status);
   renderReservoir(status);
+  renderLoadCell(status);
 }
 
 async function loadSettings() {
@@ -88,6 +112,8 @@ async function loadSettings() {
   reservoirEn.checked = settings.reservoir_sensor_enabled;
   reservoirEmptyLow.checked = settings.reservoir_empty_active_low;
   reservoirPolicy.value = settings.reservoir_empty_policy || "block";
+  loadCellEn.checked = settings.load_cell_enabled;
+  fluidDensity.value = settings.fluid_density_g_per_ml ?? 1;
 }
 
 async function loadEvents() {
@@ -121,11 +147,37 @@ document.getElementById("settings-form").addEventListener("submit", async (event
       driver_stealthchop: tmcStealth.checked,
       reservoir_sensor_enabled: reservoirEn.checked,
       reservoir_empty_active_low: reservoirEmptyLow.checked,
-      reservoir_empty_policy: reservoirPolicy.value
+      reservoir_empty_policy: reservoirPolicy.value,
+      load_cell_enabled: loadCellEn.checked,
+      fluid_density_g_per_ml: Number(fluidDensity.value)
     });
-    settingsStatus.textContent = saved.driver_uart_enabled && !saved.driver_uart_ready
-      ? `Settings saved. UART warning: ${saved.driver_uart_error || "not ready"}`
-      : "Settings saved.";
+    let message = "Settings saved.";
+    if (saved.driver_uart_enabled && !saved.driver_uart_ready) {
+      message = `Settings saved. UART warning: ${saved.driver_uart_error || "not ready"}`;
+    } else if (saved.load_cell_enabled && !saved.load_cell_ready) {
+      message = "Settings saved. Load cell not ready (check wiring).";
+    }
+    settingsStatus.textContent = message;
+    renderStatus(await getStatus());
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+document.getElementById("loadcell-tare-btn").addEventListener("click", async () => {
+  try {
+    await tareLoadCell();
+    settingsStatus.textContent = "Load cell tared.";
+    renderStatus(await getStatus());
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+document.getElementById("loadcell-cal-btn").addEventListener("click", async () => {
+  try {
+    await calibrateLoadCell(Number(loadCellKnownG.value));
+    settingsStatus.textContent = "Load cell calibrated.";
     renderStatus(await getStatus());
   } catch (error) {
     alert(error.message);

@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <WiFi.h>
+#include <cmath>
 
 #include "Config.h"
 #include "secrets.h"
@@ -195,6 +196,47 @@ bool WebServerController::applyReservoirFromBody(
     return true;
 }
 
+void WebServerController::fillLoadCellSettingsJson(
+    const GlobalSettings& settings,
+    JsonObject doc
+) const {
+    doc["load_cell_enabled"] = settings.loadCellEnabled;
+    doc["load_cell_scale"] = settings.loadCellScale;
+    doc["load_cell_offset"] = settings.loadCellOffset;
+    doc["fluid_density_g_per_ml"] = settings.fluidDensityGPerMl;
+}
+
+bool WebServerController::applyLoadCellFromBody(
+    JsonObjectConst body,
+    GlobalSettings& settings
+) const {
+    settings.loadCellEnabled =
+        body["load_cell_enabled"] | settings.loadCellEnabled;
+    settings.loadCellScale = body["load_cell_scale"] | settings.loadCellScale;
+    settings.loadCellOffset = body["load_cell_offset"] | settings.loadCellOffset;
+    settings.fluidDensityGPerMl =
+        body["fluid_density_g_per_ml"] | settings.fluidDensityGPerMl;
+    if (!std::isfinite(settings.loadCellScale) || settings.loadCellScale == 0.0f) {
+        return false;
+    }
+    if (!std::isfinite(settings.fluidDensityGPerMl) ||
+        settings.fluidDensityGPerMl <= 0.0f ||
+        settings.fluidDensityGPerMl > 5.0f) {
+        return false;
+    }
+    return true;
+}
+
+void WebServerController::persistLoadCellCalibration() {
+    if (settings_ == nullptr || loadCell_ == nullptr) {
+        return;
+    }
+    GlobalSettings settings = settings_->get();
+    settings.loadCellScale = loadCell_->scale();
+    settings.loadCellOffset = loadCell_->offset();
+    settings_->save(settings);
+}
+
 void WebServerController::begin(
     PumpService& pump,
     ProfileRepository& profiles,
@@ -204,7 +246,8 @@ void WebServerController::begin(
     SafetyController& safety,
     EventLogger& logger,
     TmcDriverController& tmc,
-    ReservoirSensor& reservoir
+    ReservoirSensor& reservoir,
+    LoadCellSensor& loadCell
 ) {
     pump_ = &pump;
     profiles_ = &profiles;
@@ -215,6 +258,7 @@ void WebServerController::begin(
     logger_ = &logger;
     tmc_ = &tmc;
     reservoir_ = &reservoir;
+    loadCell_ = &loadCell;
 
     registerApiRoutes();
     registerStaticRoutes();
@@ -290,6 +334,28 @@ void WebServerController::registerApiRoutes() {
         doc["reservoir_empty_warning"] = pump_->reservoirEmptyWarning();
         doc["reservoir_empty_policy"] =
             reservoirEmptyPolicyToString(pump_->reservoirEmptyPolicy());
+        doc["load_cell_enabled"] = loadCell_ != nullptr && loadCell_->isEnabled();
+        doc["load_cell_ready"] = loadCell_ != nullptr && loadCell_->isReady();
+        if (loadCell_ != nullptr && loadCell_->isEnabled()) {
+            doc["load_cell_grams"] = loadCell_->grams();
+            doc["load_cell_raw"] = loadCell_->raw();
+            const float density = settings_->get().fluidDensityGPerMl;
+            if (density > 0.0f) {
+                doc["load_cell_ml"] = loadCell_->grams() / density;
+            } else {
+                doc["load_cell_ml"] = nullptr;
+            }
+            if (!loadCell_->lastError().isEmpty()) {
+                doc["load_cell_error"] = loadCell_->lastError();
+            } else {
+                doc["load_cell_error"] = nullptr;
+            }
+        } else {
+            doc["load_cell_grams"] = nullptr;
+            doc["load_cell_raw"] = nullptr;
+            doc["load_cell_ml"] = nullptr;
+            doc["load_cell_error"] = nullptr;
+        }
         doc["ip"] = WiFi.status() == WL_CONNECTED
             ? WiFi.localIP().toString()
             : WiFi.softAPIP().toString();
@@ -745,6 +811,78 @@ void WebServerController::registerApiRoutes() {
         sendJson(request, 200, doc);
     });
 
+    server_.on("/api/loadcell/tare", HTTP_POST, [this](AsyncWebServerRequest* request) {
+        if (!requireAuth(request)) {
+            return;
+        }
+        if (loadCell_ == nullptr || !loadCell_->isEnabled()) {
+            sendError(request, 400, "loadcell_disabled");
+            return;
+        }
+        if (!loadCell_->tare()) {
+            sendError(
+                request,
+                503,
+                loadCell_->lastError().isEmpty() ? "loadcell_tare_failed"
+                                                 : loadCell_->lastError().c_str()
+            );
+            return;
+        }
+        persistLoadCellCalibration();
+        if (logger_ != nullptr) {
+            logger_->log("loadcell_tared");
+        }
+        JsonDocument doc;
+        doc["tared"] = true;
+        doc["offset"] = loadCell_->offset();
+        doc["grams"] = loadCell_->grams();
+        sendJson(request, 200, doc);
+    });
+
+    server_.on(
+        "/api/loadcell/calibrate",
+        HTTP_POST,
+        [](AsyncWebServerRequest* request) {},
+        nullptr,
+        [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t, size_t) {
+            if (!requireAuth(request)) {
+                return;
+            }
+            if (loadCell_ == nullptr || !loadCell_->isEnabled()) {
+                sendError(request, 400, "loadcell_disabled");
+                return;
+            }
+            JsonDocument body;
+            if (!readJsonBody(data, len, body)) {
+                sendError(request, 400, "invalid_json");
+                return;
+            }
+            const float knownGrams = body["known_grams"] | 0.0f;
+            if (!loadCell_->calibrate(knownGrams)) {
+                sendError(
+                    request,
+                    400,
+                    loadCell_->lastError().isEmpty() ? "loadcell_calibrate_failed"
+                                                     : loadCell_->lastError().c_str()
+                );
+                return;
+            }
+            persistLoadCellCalibration();
+            if (logger_ != nullptr) {
+                JsonDocument fields;
+                fields["known_grams"] = knownGrams;
+                fields["scale"] = loadCell_->scale();
+                logger_->log("loadcell_calibrated", fields);
+            }
+            JsonDocument doc;
+            doc["calibrated"] = true;
+            doc["scale"] = loadCell_->scale();
+            doc["offset"] = loadCell_->offset();
+            doc["grams"] = loadCell_->grams();
+            sendJson(request, 200, doc);
+        }
+    );
+
     server_.on("/api/operation", HTTP_GET, [this](AsyncWebServerRequest* request) {
         if (!requireAuth(request)) {
             return;
@@ -780,6 +918,7 @@ void WebServerController::registerApiRoutes() {
         doc["valve_hardware_present"] = settings.valveHardwarePresent;
         fillTmcSettingsJson(settings, doc.as<JsonObject>());
         fillReservoirSettingsJson(settings, doc.as<JsonObject>());
+        fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
         sendJson(request, 200, doc);
     });
 
@@ -814,6 +953,10 @@ void WebServerController::registerApiRoutes() {
                 sendError(request, 400, "reservoir_settings_invalid");
                 return;
             }
+            if (!applyLoadCellFromBody(body.as<JsonObjectConst>(), settings)) {
+                sendError(request, 400, "loadcell_settings_invalid");
+                return;
+            }
             if (!settings_->save(settings)) {
                 sendError(request, 500, "storage_failure");
                 return;
@@ -841,6 +984,20 @@ void WebServerController::registerApiRoutes() {
                     parseReservoirEmptyPolicy(settings.reservoirEmptyPolicy)
                 );
             }
+            if (loadCell_ != nullptr) {
+                loadCell_->begin(PUMP_LOADCELL_DT_PIN, PUMP_LOADCELL_SCK_PIN);
+                loadCell_->configure(
+                    settings.loadCellEnabled,
+                    settings.loadCellScale,
+                    settings.loadCellOffset
+                );
+                if (settings.loadCellEnabled && !loadCell_->isReady() &&
+                    logger_ != nullptr) {
+                    JsonDocument fields;
+                    fields["error"] = loadCell_->lastError();
+                    logger_->log("loadcell_warning", fields);
+                }
+            }
             if (tmc_ != nullptr) {
                 TmcDriverConfig config;
                 config.enabled = settings.driverUartEnabled;
@@ -863,12 +1020,14 @@ void WebServerController::registerApiRoutes() {
             doc["emergency_stop_enabled"] = settings.emergencyStopEnabled;
             fillTmcSettingsJson(settings, doc.as<JsonObject>());
             fillReservoirSettingsJson(settings, doc.as<JsonObject>());
+            fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
             doc["driver_uart_ready"] = tmc_ != nullptr && tmc_->isReady();
             if (tmc_ != nullptr && !tmc_->lastError().isEmpty()) {
                 doc["driver_uart_error"] = tmc_->lastError();
             } else {
                 doc["driver_uart_error"] = nullptr;
             }
+            doc["load_cell_ready"] = loadCell_ != nullptr && loadCell_->isReady();
             sendJson(request, 200, doc);
         }
     );
@@ -907,6 +1066,7 @@ void WebServerController::registerApiRoutes() {
         settingsObj["valve_hardware_present"] = settings.valveHardwarePresent;
         fillTmcSettingsJson(settings, settingsObj);
         fillReservoirSettingsJson(settings, settingsObj);
+        fillLoadCellSettingsJson(settings, settingsObj);
         profiles_->exportToJson(doc);
         sendJson(request, 200, doc);
     });
@@ -952,6 +1112,10 @@ void WebServerController::registerApiRoutes() {
                     sendError(request, 400, "reservoir_settings_invalid");
                     return;
                 }
+                if (!applyLoadCellFromBody(settingsObj, settings)) {
+                    sendError(request, 400, "loadcell_settings_invalid");
+                    return;
+                }
                 settings_->save(settings);
                 logger_->setEnabled(settings.loggingEnabled);
                 if (reservoir_ != nullptr) {
@@ -964,6 +1128,14 @@ void WebServerController::registerApiRoutes() {
                 if (pump_ != nullptr) {
                     pump_->setReservoirEmptyPolicy(
                         parseReservoirEmptyPolicy(settings.reservoirEmptyPolicy)
+                    );
+                }
+                if (loadCell_ != nullptr) {
+                    loadCell_->begin(PUMP_LOADCELL_DT_PIN, PUMP_LOADCELL_SCK_PIN);
+                    loadCell_->configure(
+                        settings.loadCellEnabled,
+                        settings.loadCellScale,
+                        settings.loadCellOffset
                     );
                 }
                 if (tmc_ != nullptr) {

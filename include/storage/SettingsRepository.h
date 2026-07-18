@@ -19,6 +19,10 @@ struct GlobalSettings {
     bool reservoirEmptyActiveLow = true;
     // warn | block | fault
     String reservoirEmptyPolicy = "block";
+    bool loadCellEnabled = false;
+    float loadCellScale = 1.0f;
+    int32_t loadCellOffset = 0;
+    float fluidDensityGPerMl = 1.0f;
 };
 
 class SettingsRepository {

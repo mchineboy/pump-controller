@@ -140,6 +140,17 @@ export function clearEventLog() {
   return requestJson("/api/events/log", { method: "DELETE" });
 }
 
+export function tareLoadCell() {
+  return requestJson("/api/loadcell/tare", { method: "POST" });
+}
+
+export function calibrateLoadCell(knownGrams) {
+  return requestJson("/api/loadcell/calibrate", {
+    method: "POST",
+    body: JSON.stringify({ known_grams: knownGrams })
+  });
+}
+
 export function exportConfig() {
   return requestJson("/api/config/export");
 }
