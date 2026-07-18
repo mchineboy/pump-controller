@@ -6,7 +6,8 @@ const liveStatus = document.getElementById("live-status");
 function render(status) {
   liveStatus.textContent =
     `State: ${status.state} · motor ${status.motor_running ? "running" : "idle"} · ` +
-    `valve ${status.valve_open ? "open" : "closed"}` +
+    `valve ${status.valve_open ? "open" : "closed"} · ` +
+    `ESTOP ${status.estop_enabled ? (status.estop_active ? "ASSERTED" : "armed") : "off"}` +
     (status.fault ? ` · fault: ${status.fault}` : "");
 }
 

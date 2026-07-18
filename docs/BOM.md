@@ -22,4 +22,5 @@ Puschmann’s NEMA 17 peristaltic pump and this ESP32 controller.
 | Wiring | Hookup wire and connectors | Wire, ferrules or crimp terminals, and connectors suitable for 12 V power, motor phases, and low-voltage control | 1 set | Yes | Keep motor wiring separated from ESP32 signal wiring where practical |
 | Thermal | TMC2209 heatsink | Small adhesive heatsink appropriate for the StepStick module | 1 | Recommended | Often included with the BIGTREETECH driver package |
 | Safety | Fuse | Inline fuse and holder sized for the 12 V input, approximately 3 A | 1 | Recommended | Place near the 12 V power-entry point |
+| Safety | Emergency stop switch | Normally-open switch or latching ESTOP that connects GPIO 32 to GND when asserted | 1 | Optional | Enable in Diagnostics; see [HARDWARE.md](HARDWARE.md) |
 | Enclosure | Controller enclosure | Ventilated enclosure for ESP32, driver, buck converter, terminals, and optional valve driver | 1 | Recommended | Keep liquid plumbing physically separated from electronics |

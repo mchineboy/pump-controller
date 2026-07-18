@@ -38,3 +38,19 @@ Full part list: [BOM.md](BOM.md).
   valve driver.
 - Place an inline fuse near the 12 V power-entry point when building a permanent
   enclosure.
+
+## Emergency stop (optional)
+
+Default pin: **GPIO 32** (`PUMP_ESTOP_PIN`), active-low with ESP32 internal pull-up.
+
+Recommended wiring:
+
+- Use a normally-open (NO) momentary or maintained ESTOP that connects GPIO 32
+  to GND when pressed/latched.
+- Keep the switch on a short, dedicated cable; do not share with motor power
+  returns in a way that injects noise onto the sense line.
+- Enable “Emergency stop input” in the Diagnostics settings before relying on
+  the switch. When enabled, ESTOP is polled in the firmware loop (not via HTTP).
+- On assert: step pulses stop, valve closes, driver disables, system enters
+  fault. Clear the switch, then acknowledge the fault in the UI before starting
+  another operation.

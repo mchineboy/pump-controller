@@ -398,6 +398,11 @@ bool PumpService::acknowledgeFault() {
     if (safety_ != nullptr && !safety_->acknowledgeFault()) {
         return false;
     }
+    if (logger_ != nullptr && lastFault_ == FaultCode::EmergencyStop) {
+        JsonDocument fields;
+        fields["fault"] = "emergency_stop";
+        logger_->log("estop_acknowledged", fields);
+    }
     lastFault_ = FaultCode::None;
     enterIdle();
     return true;
@@ -428,7 +433,12 @@ void PumpService::update() {
             lastFault_ = FaultCode::EmergencyStop;
             state_ = SystemState::Fault;
             completionReason_ = "emergency_stop";
-            logEvent("fault");
+            if (logger_ != nullptr) {
+                JsonDocument fields;
+                fields["profile_id"] = activeProfileId_;
+                fields["fault"] = "emergency_stop";
+                logger_->log("estop_activated", fields);
+            }
         }
         return;
     }
