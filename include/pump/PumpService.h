@@ -62,6 +62,19 @@ public:
     const String& activeOperationId() const { return operationId_; }
 
 private:
+    enum class SequencePhase : uint8_t {
+        Idle,
+        ValvePreOpen,
+        MotorRunning,
+        ValvePostClose
+    };
+
+    enum class PendingMotion : uint8_t {
+        None,
+        Dispense,
+        Calibration
+    };
+
     bool fail(FaultCode code);
     void enterIdle();
     void finishCalibrationMotion();
@@ -70,6 +83,11 @@ private:
     void applySafeOutputs();
     String nextOperationId(const char* prefix);
     void logEvent(const char* event);
+    bool valveShouldRun(const FluidProfile& profile) const;
+    bool beginValvePreOpen(const FluidProfile& profile);
+    bool startPendingMotor();
+    void beginValvePostClose();
+    void completeValvePostClose();
 
     StepperController* stepper_ = nullptr;
     ValveController* valve_ = nullptr;
@@ -79,6 +97,8 @@ private:
 
     SystemState state_ = SystemState::Booting;
     FaultCode lastFault_ = FaultCode::None;
+    SequencePhase sequencePhase_ = SequencePhase::Idle;
+    PendingMotion pendingMotion_ = PendingMotion::None;
     String operationId_;
     String activeProfileId_;
     float requestedMl_ = 0.0f;
@@ -90,6 +110,15 @@ private:
     int64_t pendingCalibrationSteps_ = 0;
     uint32_t pendingCalibrationActualMs_ = 0;
     String completionReason_;
+
+    bool valveInUse_ = false;
+    uint32_t valvePreOpenMs_ = 0;
+    uint32_t valvePostCloseMs_ = 0;
+    uint32_t phaseStartedMs_ = 0;
+
+    uint32_t pendingSpeed_ = 0;
+    uint32_t pendingAccel_ = 0;
+    bool pendingDirectionInverted_ = false;
 
     std::vector<CalibrationSample> samples_;
 };

@@ -18,6 +18,8 @@ void PumpService::begin(
     safety_ = &safety;
     logger_ = &logger;
     applySafeOutputs();
+    sequencePhase_ = SequencePhase::Idle;
+    pendingMotion_ = PendingMotion::None;
     state_ = SystemState::Idle;
 }
 
@@ -46,6 +48,9 @@ void PumpService::applySafeOutputs() {
     if (valve_ != nullptr) {
         valve_->close();
     }
+    sequencePhase_ = SequencePhase::Idle;
+    pendingMotion_ = PendingMotion::None;
+    valveInUse_ = false;
 }
 
 bool PumpService::fail(FaultCode code) {
@@ -74,6 +79,106 @@ void PumpService::enterIdle() {
 
 String PumpService::nextOperationId(const char* prefix) {
     return String(prefix) + String(millis());
+}
+
+bool PumpService::valveShouldRun(const FluidProfile& profile) const {
+    return profile.valve.enabled &&
+           valve_ != nullptr &&
+           valve_->isAvailable();
+}
+
+bool PumpService::beginValvePreOpen(const FluidProfile& profile) {
+    valveInUse_ = true;
+    valvePreOpenMs_ = profile.valve.preOpenMs;
+    valvePostCloseMs_ = profile.valve.postMotorCloseMs;
+    if (!valve_->open()) {
+        return fail(FaultCode::ValveFault);
+    }
+    if (logger_ != nullptr) {
+        JsonDocument fields;
+        fields["profile_id"] = activeProfileId_;
+        fields["pre_open_ms"] = valvePreOpenMs_;
+        logger_->log("valve_opened", fields);
+    }
+    sequencePhase_ = SequencePhase::ValvePreOpen;
+    phaseStartedMs_ = millis();
+    if (valvePreOpenMs_ == 0) {
+        return startPendingMotor();
+    }
+    return true;
+}
+
+bool PumpService::startPendingMotor() {
+    bool started = false;
+    if (pendingMotion_ == PendingMotion::Dispense) {
+        started = stepper_->startMove(
+            targetSteps_,
+            pendingSpeed_,
+            pendingAccel_,
+            pendingDirectionInverted_
+        );
+    } else if (pendingMotion_ == PendingMotion::Calibration) {
+        started = stepper_->startTimedMove(
+            calibrationDurationMs_,
+            pendingSpeed_,
+            pendingAccel_,
+            pendingDirectionInverted_
+        );
+    }
+
+    if (!started) {
+        valve_->close();
+        return fail(FaultCode::InternalError);
+    }
+
+    sequencePhase_ = SequencePhase::MotorRunning;
+    phaseStartedMs_ = millis();
+    return true;
+}
+
+void PumpService::beginValvePostClose() {
+    if (!valveInUse_ || valvePostCloseMs_ == 0) {
+        completeValvePostClose();
+        return;
+    }
+    sequencePhase_ = SequencePhase::ValvePostClose;
+    phaseStartedMs_ = millis();
+}
+
+void PumpService::completeValvePostClose() {
+    if (valveInUse_ && valve_ != nullptr) {
+        valve_->close();
+        if (logger_ != nullptr) {
+            JsonDocument fields;
+            fields["profile_id"] = activeProfileId_;
+            fields["post_close_ms"] = valvePostCloseMs_;
+            logger_->log("valve_closed", fields);
+        }
+    }
+    valveInUse_ = false;
+    sequencePhase_ = SequencePhase::Idle;
+
+    if (pendingMotion_ == PendingMotion::Calibration) {
+        stepper_->setEnabled(false);
+        awaitingMeasurement_ = true;
+        state_ = SystemState::AwaitingCalibrationMeasurement;
+        completionReason_ = "awaiting_measurement";
+        logEvent("calibration_completed");
+    } else {
+        stepper_->setEnabled(false);
+        state_ = SystemState::Completed;
+        completionReason_ = "target_reached";
+        if (logger_ != nullptr) {
+            JsonDocument fields;
+            fields["operation_id"] = operationId_;
+            fields["profile_id"] = activeProfileId_;
+            fields["requested_ml"] = requestedMl_;
+            fields["commanded_steps"] = targetSteps_;
+            fields["elapsed_ms"] = millis() - operationStartMs_;
+            logger_->log("dispense_completed", fields);
+        }
+    }
+    pendingMotion_ = PendingMotion::None;
 }
 
 bool PumpService::startDispense(const DispenseRequest& request) {
@@ -118,28 +223,21 @@ bool PumpService::startDispense(const DispenseRequest& request) {
     targetSteps_ = targetSteps;
     operationStartMs_ = millis();
     completionReason_ = "";
+    pendingMotion_ = PendingMotion::Dispense;
+    pendingSpeed_ = profile.motor.speedStepsPerSecond;
+    pendingAccel_ = profile.motor.accelerationStepsPerSecondSquared;
+    pendingDirectionInverted_ = profile.motor.directionInverted;
 
     const double expectedSeconds =
         static_cast<double>(targetSteps) /
         static_cast<double>(profile.motor.speedStepsPerSecond);
+    const uint32_t valveMarginMs =
+        valveShouldRun(profile)
+            ? (profile.valve.preOpenMs + profile.valve.postMotorCloseMs)
+            : 0;
     maxRuntimeMs_ = static_cast<uint32_t>(
-        expectedSeconds * 1000.0 * 1.2 + 2000.0
+        expectedSeconds * 1000.0 * 1.2 + 2000.0 + valveMarginMs
     );
-
-    if (profile.valve.enabled) {
-        valve_->open();
-    }
-
-    const bool started = stepper_->startMove(
-        targetSteps,
-        profile.motor.speedStepsPerSecond,
-        profile.motor.accelerationStepsPerSecondSquared,
-        profile.motor.directionInverted
-    );
-    if (!started) {
-        valve_->close();
-        return fail(FaultCode::InternalError);
-    }
 
     state_ = SystemState::Dispensing;
     if (logger_ != nullptr) {
@@ -150,7 +248,13 @@ bool PumpService::startDispense(const DispenseRequest& request) {
         fields["target_steps"] = targetSteps_;
         logger_->log("dispense_started", fields);
     }
-    return true;
+
+    if (valveShouldRun(profile)) {
+        return beginValvePreOpen(profile);
+    }
+
+    valveInUse_ = false;
+    return startPendingMotor();
 }
 
 bool PumpService::startCalibration(const String& profileId, uint32_t durationMs) {
@@ -182,22 +286,16 @@ bool PumpService::startCalibration(const String& profileId, uint32_t durationMs)
     operationStartMs_ = millis();
     awaitingMeasurement_ = false;
     completionReason_ = "";
-    maxRuntimeMs_ = durationMs + (durationMs / 5) + 2000;
+    pendingMotion_ = PendingMotion::Calibration;
+    pendingSpeed_ = profile.motor.speedStepsPerSecond;
+    pendingAccel_ = profile.motor.accelerationStepsPerSecondSquared;
+    pendingDirectionInverted_ = profile.motor.directionInverted;
 
-    if (profile.valve.enabled) {
-        valve_->open();
-    }
-
-    const bool started = stepper_->startTimedMove(
-        durationMs,
-        profile.motor.speedStepsPerSecond,
-        profile.motor.accelerationStepsPerSecondSquared,
-        profile.motor.directionInverted
-    );
-    if (!started) {
-        valve_->close();
-        return fail(FaultCode::InternalError);
-    }
+    const uint32_t valveMarginMs =
+        valveShouldRun(profile)
+            ? (profile.valve.preOpenMs + profile.valve.postMotorCloseMs)
+            : 0;
+    maxRuntimeMs_ = durationMs + (durationMs / 5) + 2000 + valveMarginMs;
 
     state_ = SystemState::Calibrating;
     if (logger_ != nullptr) {
@@ -208,7 +306,13 @@ bool PumpService::startCalibration(const String& profileId, uint32_t durationMs)
         fields["speed"] = profile.motor.speedStepsPerSecond;
         logger_->log("calibration_started", fields);
     }
-    return true;
+
+    if (valveShouldRun(profile)) {
+        return beginValvePreOpen(profile);
+    }
+
+    valveInUse_ = false;
+    return startPendingMotor();
 }
 
 void PumpService::requestStop() {
@@ -219,7 +323,15 @@ void PumpService::requestStop() {
     }
     state_ = SystemState::Stopping;
     stepper_->stopImmediate();
-    valve_->close();
+    if (valve_ != nullptr) {
+        valve_->close();
+    }
+    if (valveInUse_ && logger_ != nullptr) {
+        JsonDocument fields;
+        fields["profile_id"] = activeProfileId_;
+        fields["reason"] = "stopped_by_user";
+        logger_->log("valve_closed", fields);
+    }
     completionReason_ = "stopped_by_user";
     logEvent("dispense_stopped");
     completeStop();
@@ -240,31 +352,17 @@ bool PumpService::acknowledgeFault() {
 void PumpService::finishCalibrationMotion() {
     pendingCalibrationSteps_ = stepper_->stepsCompleted();
     pendingCalibrationActualMs_ = millis() - operationStartMs_;
-    valve_->close();
-    stepper_->setEnabled(false);
-    awaitingMeasurement_ = true;
-    state_ = SystemState::AwaitingCalibrationMeasurement;
-    completionReason_ = "awaiting_measurement";
-    logEvent("calibration_completed");
+    beginValvePostClose();
 }
 
 void PumpService::finishDispense() {
-    valve_->close();
-    stepper_->setEnabled(false);
-    state_ = SystemState::Completed;
-    completionReason_ = "target_reached";
-    if (logger_ != nullptr) {
-        JsonDocument fields;
-        fields["operation_id"] = operationId_;
-        fields["profile_id"] = activeProfileId_;
-        fields["requested_ml"] = requestedMl_;
-        fields["commanded_steps"] = targetSteps_;
-        fields["elapsed_ms"] = millis() - operationStartMs_;
-        logger_->log("dispense_completed", fields);
-    }
+    beginValvePostClose();
 }
 
 void PumpService::completeStop() {
+    sequencePhase_ = SequencePhase::Idle;
+    pendingMotion_ = PendingMotion::None;
+    valveInUse_ = false;
     stepper_->setEnabled(false);
     state_ = SystemState::Idle;
 }
@@ -281,14 +379,33 @@ void PumpService::update() {
         return;
     }
 
-    if (state_ == SystemState::Dispensing || state_ == SystemState::Calibrating) {
-        stepper_->update();
+    if (state_ != SystemState::Dispensing && state_ != SystemState::Calibrating) {
+        return;
+    }
 
-        if ((millis() - operationStartMs_) > maxRuntimeMs_) {
-            fail(FaultCode::MotorTimeout);
-            return;
+    if ((millis() - operationStartMs_) > maxRuntimeMs_) {
+        fail(FaultCode::MotorTimeout);
+        return;
+    }
+
+    if (sequencePhase_ == SequencePhase::ValvePreOpen) {
+        if (millis() - phaseStartedMs_ >= valvePreOpenMs_) {
+            if (!startPendingMotor()) {
+                return;
+            }
         }
+        return;
+    }
 
+    if (sequencePhase_ == SequencePhase::ValvePostClose) {
+        if (millis() - phaseStartedMs_ >= valvePostCloseMs_) {
+            completeValvePostClose();
+        }
+        return;
+    }
+
+    if (sequencePhase_ == SequencePhase::MotorRunning) {
+        stepper_->update();
         if (!stepper_->isRunning()) {
             if (state_ == SystemState::Calibrating) {
                 finishCalibrationMotion();
