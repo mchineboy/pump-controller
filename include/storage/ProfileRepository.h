@@ -48,7 +48,7 @@ public:
 
 private:
     std::vector<FluidProfile> profiles_;
-    String activeId_ = "default";
+    String activeId_ = "fluid_1";
 
     void seedDefaults();
     FluidProfile makeDefault(const char* id, const char* name) const;

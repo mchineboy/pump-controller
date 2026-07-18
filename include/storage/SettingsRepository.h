@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 struct GlobalSettings {
-    String deviceName = "Precision Pump Controller";
+    String deviceName = "Fluid Dispensing Controller";
     String hostname = "pump-controller";
     String wifiMode = "ap";  // ap | station
     bool emergencyStopEnabled = false;

@@ -374,7 +374,7 @@ void WebServerController::registerApiRoutes() {
                 sendError(request, 400, "invalid_json");
                 return;
             }
-            const char* profileId = body["profile_id"] | "default";
+            const char* profileId = body["profile_id"] | "fluid_1";
             const uint32_t durationMs =
                 body["duration_ms"] | Config::kDefaultCalibrationDurationMs;
             if (!pump_->startCalibration(profileId, durationMs)) {
@@ -529,7 +529,7 @@ void WebServerController::registerApiRoutes() {
                 return;
             }
             DispenseRequest dispense;
-            dispense.profileId = body["profile_id"] | "default";
+            dispense.profileId = body["profile_id"] | "fluid_1";
             dispense.requestedMl = body["volume_ml"] | 0.0f;
             if (!pump_->startDispense(dispense)) {
                 sendError(

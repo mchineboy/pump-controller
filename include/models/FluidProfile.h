@@ -39,8 +39,8 @@ struct DispenseLimits {
 };
 
 struct FluidProfile {
-    String id = "default";
-    String name = "Default";
+    String id = "fluid_1";
+    String name = "Fluid 1";
     bool enabled = true;
     bool calibrated = false;
     CalibrationData calibration;

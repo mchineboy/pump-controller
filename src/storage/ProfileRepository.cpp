@@ -27,11 +27,13 @@ FluidProfile ProfileRepository::makeDefault(const char* id, const char* name) co
 
 void ProfileRepository::seedDefaults() {
     profiles_.clear();
-    profiles_.push_back(makeDefault("default", "Default"));
-    profiles_.push_back(makeDefault("fluid_a", "Fluid A"));
-    profiles_.push_back(makeDefault("fluid_b", "Fluid B"));
-    profiles_.push_back(makeDefault("custom", "Custom"));
-    activeId_ = "default";
+    profiles_.push_back(makeDefault("fluid_1", "Fluid 1"));
+    profiles_.push_back(makeDefault("fluid_2", "Fluid 2"));
+    profiles_.push_back(makeDefault("fluid_3", "Fluid 3"));
+    profiles_.push_back(makeDefault("fluid_4", "Fluid 4"));
+    profiles_.push_back(makeDefault("fluid_5", "Fluid 5"));
+    profiles_.push_back(makeDefault("fluid_6", "Fluid 6"));
+    activeId_ = "fluid_1";
 }
 
 void ProfileRepository::profileToJson(
@@ -154,6 +156,7 @@ bool ProfileRepository::profileFromJson(
 
 bool ProfileRepository::saveToFs() const {
     JsonDocument doc;
+    doc["schema"] = Config::kProfilesSchemaVersion;
     doc["active_id"] = activeId_;
     JsonArray arr = doc["profiles"].to<JsonArray>();
     for (const FluidProfile& profile : profiles_) {
@@ -186,6 +189,12 @@ bool ProfileRepository::loadFromFs() {
         return false;
     }
 
+    const int schema = doc["schema"] | 0;
+    if (schema < Config::kProfilesSchemaVersion) {
+        // Reseed generic Fluid 1–6 defaults once when upgrading schema.
+        return false;
+    }
+
     profiles_.clear();
     JsonArrayConst arr = doc["profiles"].as<JsonArrayConst>();
     for (JsonVariantConst item : arr) {
@@ -198,7 +207,7 @@ bool ProfileRepository::loadFromFs() {
         }
     }
 
-    activeId_ = doc["active_id"] | "default";
+    activeId_ = doc["active_id"] | "fluid_1";
     if (profiles_.empty()) {
         return false;
     }
@@ -211,36 +220,39 @@ bool ProfileRepository::loadFromFs() {
 bool ProfileRepository::begin() {
     seedDefaults();
 
-    // Migrate single-profile NVS data into the default profile if present.
+    // Migrate single-profile NVS data into Fluid 1 if present.
     Preferences nvs;
     if (nvs.begin("pump", true)) {
         if (nvs.isKey("steps_per_ml")) {
-            FluidProfile& profile = profiles_[findIndex("default")];
-            profile.calibrated = nvs.getBool("calibrated", false);
-            profile.calibration.valid = profile.calibrated;
-            profile.calibration.stepsPerMl = nvs.getFloat("steps_per_ml", 0.0f);
-            profile.calibration.mlPerSecond = nvs.getFloat("ml_per_sec", 0.0f);
-            profile.calibration.measuredMl = nvs.getFloat("measured_ml", 0.0f);
-            profile.calibration.stepCount = nvs.getLong64("step_count", 0);
-            profile.calibration.requestedDurationMs =
-                nvs.getUInt("req_dur_ms", Config::kDefaultCalibrationDurationMs);
-            profile.calibration.actualDurationMs =
-                nvs.getUInt("act_dur_ms", Config::kDefaultCalibrationDurationMs);
-            profile.calibration.sampleCount = nvs.getUChar("sample_count", 0);
-            profile.calibration.calibratedAt = nvs.getString("calibrated_at", "");
-            profile.motor.speedStepsPerSecond =
-                nvs.getUInt("speed", Config::kDefaultSpeedStepsPerSec);
-            profile.motor.accelerationStepsPerSecondSquared =
-                nvs.getUInt("accel", Config::kDefaultAccelStepsPerSec2);
-            profile.motor.decelerationStepsPerSecondSquared =
-                nvs.getUInt("decel", Config::kDefaultAccelStepsPerSec2);
-            profile.motor.directionInverted = nvs.getBool("dir_inv", false);
-            profile.limits.minimumMl =
-                nvs.getFloat("min_ml", Config::kDefaultMinDispenseMl);
-            profile.limits.maximumMl =
-                nvs.getFloat("max_ml", Config::kDefaultMaxDispenseMl);
-            profile.calibrated =
-                profile.calibrated && profile.calibration.stepsPerMl > 0.0f;
+            const int index = findIndex("fluid_1");
+            if (index >= 0) {
+                FluidProfile& profile = profiles_[static_cast<size_t>(index)];
+                profile.calibrated = nvs.getBool("calibrated", false);
+                profile.calibration.valid = profile.calibrated;
+                profile.calibration.stepsPerMl = nvs.getFloat("steps_per_ml", 0.0f);
+                profile.calibration.mlPerSecond = nvs.getFloat("ml_per_sec", 0.0f);
+                profile.calibration.measuredMl = nvs.getFloat("measured_ml", 0.0f);
+                profile.calibration.stepCount = nvs.getLong64("step_count", 0);
+                profile.calibration.requestedDurationMs =
+                    nvs.getUInt("req_dur_ms", Config::kDefaultCalibrationDurationMs);
+                profile.calibration.actualDurationMs =
+                    nvs.getUInt("act_dur_ms", Config::kDefaultCalibrationDurationMs);
+                profile.calibration.sampleCount = nvs.getUChar("sample_count", 0);
+                profile.calibration.calibratedAt = nvs.getString("calibrated_at", "");
+                profile.motor.speedStepsPerSecond =
+                    nvs.getUInt("speed", Config::kDefaultSpeedStepsPerSec);
+                profile.motor.accelerationStepsPerSecondSquared =
+                    nvs.getUInt("accel", Config::kDefaultAccelStepsPerSec2);
+                profile.motor.decelerationStepsPerSecondSquared =
+                    nvs.getUInt("decel", Config::kDefaultAccelStepsPerSec2);
+                profile.motor.directionInverted = nvs.getBool("dir_inv", false);
+                profile.limits.minimumMl =
+                    nvs.getFloat("min_ml", Config::kDefaultMinDispenseMl);
+                profile.limits.maximumMl =
+                    nvs.getFloat("max_ml", Config::kDefaultMaxDispenseMl);
+                profile.calibrated =
+                    profile.calibrated && profile.calibration.stepsPerMl > 0.0f;
+            }
         }
         nvs.end();
     }
@@ -410,6 +422,7 @@ std::vector<CalibrationHistoryEntry> ProfileRepository::getCalibrationHistory(
 }
 
 bool ProfileRepository::exportToJson(JsonDocument& doc) const {
+    doc["schema"] = Config::kProfilesSchemaVersion;
     doc["active_id"] = activeId_;
     JsonArray arr = doc["profiles"].to<JsonArray>();
     for (const FluidProfile& profile : profiles_) {

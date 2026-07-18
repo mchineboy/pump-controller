@@ -13,13 +13,15 @@ Source: project software design document (2026-07-18).
 
 ## Implemented
 
-- Multiple fluid profiles (LittleFS)
+- Six generic fluid profiles (Fluid 1–6), renameable per use case
 - Repeated calibration samples with averaging / CV warning (>3%)
 - Calibration history per profile
 - Configurable speed and acceleration
 - Optional local basic auth (`admin` / `secrets.h`)
 - Event logging
 - Configuration export / import
+
+Product branding is use-case agnostic: **Fluid Dispensing Controller**.
 
 ## Board
 

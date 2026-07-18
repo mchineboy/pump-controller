@@ -32,6 +32,13 @@ bool SettingsRepository::begin() {
     settings_.valveHardwarePresent =
         prefs.getBool("valve_hw", settings_.valveHardwarePresent);
     prefs.end();
+
+    // Replace earlier project brand names with the generic product name.
+    if (settings_.deviceName == "Darkroom Pump Controller" ||
+        settings_.deviceName == "Precision Pump Controller") {
+        settings_.deviceName = Config::kDeviceName;
+        save(settings_);
+    }
     return true;
 }
 

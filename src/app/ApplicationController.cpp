@@ -129,7 +129,7 @@ void ApplicationController::begin() {
     Serial.begin(115200);
     delay(200);
     Serial.println();
-    Serial.println("Pump Controller boot");
+    Serial.println("Fluid Dispensing Controller boot");
 
     beginSafeOutputs();
 

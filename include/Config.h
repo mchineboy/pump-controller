@@ -20,7 +20,7 @@
 #endif
 
 namespace Config {
-constexpr const char* kDeviceName = "Precision Pump Controller";
+constexpr const char* kDeviceName = "Fluid Dispensing Controller";
 constexpr const char* kHostname = "pump-controller";
 constexpr const char* kApSsid = "PumpController";
 constexpr const char* kApPassword = "pumpsetup";
@@ -36,4 +36,5 @@ constexpr float kDefaultMinDispenseMl = 1.0f;
 constexpr float kDefaultMaxDispenseMl = 1000.0f;
 constexpr uint32_t kDriverDisableDelayMs = 500;
 constexpr float kCalibrationCvWarningPercent = 3.0f;
+constexpr int kProfilesSchemaVersion = 2;
 }  // namespace Config

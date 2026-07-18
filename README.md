@@ -1,9 +1,9 @@
-# Precision Pump Controller
+# Fluid Dispensing Controller
 
 Open-source ESP32 firmware and local web UI for **precision fluid dispensing**
 with a stepper-driven peristaltic pump. Suitable for lab dosing, hydroponics,
-coolant metering, photography chemistry, and other applications where calibrated
-volume delivery matters.
+coolant metering, photography chemistry, laundry soap, and other applications
+where calibrated volume delivery matters.
 
 **Board:** ELEGOO ESP32 Dev Board (ESP32-WROOM-32, CP2102, USB-C)  
 **Framework:** PlatformIO + Arduino  
@@ -26,7 +26,7 @@ web UI around that design. See [docs/HARDWARE.md](docs/HARDWARE.md) and
 
 - DHCP Wi-Fi (credentials in ignored `include/secrets.h`) with soft-AP fallback
 - Local web UI: dispense, calibration, profiles, diagnostics, hardware
-- Multiple fluid profiles with independent calibration
+- Six generic fluid profiles (Fluid 1–6), renameable, with independent calibration
 - STEP/DIR/ENABLE motor control (GPIO 26 / 27 / 25)
 - Timed calibration with multi-sample averaging and history
 - Configurable speed / acceleration (speed change clears calibration)
@@ -70,6 +70,11 @@ data/          LittleFS web assets
 docs/          design notes, BOM, hardware credit
 docs/hardware/ pump author documentation (PDF)
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build setup, scope, and pull request
+expectations.
 
 ## Notes
 
