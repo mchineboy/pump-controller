@@ -104,7 +104,7 @@ No bundler or npm build step.
 | `src/` | Firmware implementation |
 | `include/` | Headers / config |
 | `data/` | LittleFS web assets |
-| `docs/` | Design, BOM, hardware credit |
+| `docs/` | Design, BOM, hardware credit, wiring |
 | `platformio.ini` | Board, pins, libraries |
 
 Default GPIO map is documented in the [README](README.md). Override pins via

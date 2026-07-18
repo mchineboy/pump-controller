@@ -28,7 +28,9 @@ mechanical design.
 | Motor supply | 12 V regulated DC supply |
 | Logic supply | 5 V buck converter feeding ESP32 5V/VIN |
 
-Full part list: [BOM.md](BOM.md).
+Full part list: [BOM.md](BOM.md).  
+Wiring diagrams and connection tables: [WIRING.md](WIRING.md).  
+Dry-side enclosure STEP models: [../cad/enclosure/](../cad/enclosure/).
 
 ## Safety notes
 

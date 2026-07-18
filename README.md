@@ -19,8 +19,9 @@ The 3D-printable peristaltic pump mechanical design is by
 - Local author documentation: [docs/hardware/maximilian-puschmann-nema17-peristaltic-pump-v2.pdf](docs/hardware/maximilian-puschmann-nema17-peristaltic-pump-v2.pdf)
 
 This repository provides the controller firmware, electronics integration, and
-web UI around that design. See [docs/HARDWARE.md](docs/HARDWARE.md) and
-[docs/BOM.md](docs/BOM.md).
+web UI around that design. See [docs/HARDWARE.md](docs/HARDWARE.md),
+[docs/BOM.md](docs/BOM.md), [docs/WIRING.md](docs/WIRING.md), and
+[cad/enclosure/](cad/enclosure/) for the dry-side enclosure STEP files.
 
 ## Features
 
@@ -53,6 +54,9 @@ the Diagnostics page.
 
 ## Default pins
 
+See [docs/WIRING.md](docs/WIRING.md) for power distribution, TMC2209 connections,
+and optional ESTOP / valve / UART / reservoir wiring.
+
 | Signal | GPIO |
 |--------|------|
 | STEP   | 26 |
@@ -60,6 +64,9 @@ the Diagnostics page.
 | ENABLE | 25 (active low) |
 | VALVE  | 33 (optional, disabled by default) |
 | ESTOP  | 32 (optional, disabled by default) |
+| TMC RX | 16 (optional UART) |
+| TMC TX | 17 (optional UART) |
+| RESERVOIR | 34 (optional empty sense) |
 
 ## Project layout
 
@@ -67,7 +74,8 @@ the Diagnostics page.
 src/           firmware
 include/       headers
 data/          LittleFS web assets
-docs/          design notes, BOM, hardware credit
+cad/           enclosure STEP / FreeCAD source
+docs/          design notes, BOM, hardware credit, wiring
 docs/hardware/ pump author documentation (PDF)
 ```
 
