@@ -172,7 +172,7 @@ void ApplicationController::begin() {
     valve_.begin(PUMP_VALVE_PIN, settings.valveHardwarePresent, true);
     safety_.begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
 
-    pump_.begin(stepper_, valve_, profiles_, safety_, logger_);
+    pump_.begin(stepper_, valve_, profiles_, safety_, logger_, tmc_);
     beginNetwork();
     web_.begin(
         pump_,

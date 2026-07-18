@@ -1,8 +1,10 @@
 import {
+  acknowledgeFault,
   clearEventLog,
   getEventLog,
   getSettings,
   getStatus,
+  injectDriverFault,
   updateSettings
 } from "./api.js";
 import { connectStatusStream } from "./status-stream.js";
@@ -20,6 +22,7 @@ const tmcStealth = document.getElementById("tmc-stealth");
 const settingsStatus = document.getElementById("settings-status");
 const estopLive = document.getElementById("estop-live");
 const tmcLive = document.getElementById("tmc-live");
+const tmcDiag = document.getElementById("tmc-diag");
 const eventList = document.getElementById("event-list");
 
 function renderEstop(status) {
@@ -33,12 +36,20 @@ function renderEstop(status) {
 function renderTmc(status) {
   if (!status.driver_uart_enabled) {
     tmcLive.textContent = "TMC UART: disabled (STEP/DIR only)";
+    tmcDiag.textContent = "Driver flags: n/a (UART disabled)";
     return;
   }
   const ready = status.driver_uart_ready ? "ready" : "not ready";
   tmcLive.textContent =
     `TMC UART: enabled · ${ready}` +
     (status.driver_uart_error ? ` · ${status.driver_uart_error}` : "");
+  const flags = [];
+  if (status.driver_overtemperature) flags.push("OT");
+  if (status.driver_short_circuit) flags.push("short");
+  if (status.driver_open_load) flags.push("open-load");
+  tmcDiag.textContent = flags.length
+    ? `Driver flags: ${flags.join(", ")}`
+    : "Driver flags: clear";
 }
 
 function renderStatus(status) {
@@ -94,6 +105,26 @@ document.getElementById("settings-form").addEventListener("submit", async (event
       ? `Settings saved. UART warning: ${saved.driver_uart_error || "not ready"}`
       : "Settings saved.";
     renderStatus(await getStatus());
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+document.getElementById("inject-driver-fault-btn").addEventListener("click", async () => {
+  try {
+    await injectDriverFault();
+    renderStatus(await getStatus());
+    await loadEvents();
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+document.getElementById("ack-fault-btn").addEventListener("click", async () => {
+  try {
+    await acknowledgeFault();
+    renderStatus(await getStatus());
+    await loadEvents();
   } catch (error) {
     alert(error.message);
   }

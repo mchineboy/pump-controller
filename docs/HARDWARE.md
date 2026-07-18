@@ -71,3 +71,9 @@ Wiring notes:
 - Enable “TMC2209 UART” in Diagnostics and set run/hold current and microsteps.
   On miswire or no response, boot continues in STEP/DIR-only mode and logs
   `tmc_uart_warning` / `tmc_uart_no_response`.
+
+When UART is ready, firmware polls `DRV_STATUS` about every 100 ms. Overtemperature
+or short-circuit flags raise `motor_driver_fault`, stop motion, and close the valve.
+Open-load is only treated as a fault while coils are driven. Acknowledge after the
+condition clears (Diagnostics includes a simulate-fault control for testing without
+hardware).

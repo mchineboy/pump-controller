@@ -10,13 +10,15 @@ void PumpService::begin(
     ValveController& valve,
     ProfileRepository& profiles,
     SafetyController& safety,
-    EventLogger& logger
+    EventLogger& logger,
+    TmcDriverController& tmc
 ) {
     stepper_ = &stepper;
     valve_ = &valve;
     profiles_ = &profiles;
     safety_ = &safety;
     logger_ = &logger;
+    tmc_ = &tmc;
     applySafeOutputs();
     sequencePhase_ = SequencePhase::Idle;
     pendingMotion_ = PendingMotion::None;
@@ -391,6 +393,50 @@ void PumpService::requestStop() {
     completeStop();
 }
 
+bool PumpService::driverFaultPresent() const {
+    if (injectedDriverFault_) {
+        return true;
+    }
+    if (tmc_ == nullptr || !tmc_->isEnabled() || !tmc_->isReady()) {
+        return false;
+    }
+    if (tmc_->overtemperature() || tmc_->shortCircuit()) {
+        return true;
+    }
+    // Open-load is only meaningful while coils are driven.
+    const bool coilsActive =
+        sequencePhase_ == SequencePhase::MotorRunning ||
+        sequencePhase_ == SequencePhase::AntiDrip;
+    return coilsActive && tmc_->openLoad();
+}
+
+void PumpService::pollDriverDiagnostics() {
+    if (tmc_ == nullptr || !tmc_->isEnabled()) {
+        return;
+    }
+    const uint32_t now = millis();
+    if (now - lastDriverPollMs_ < 100) {
+        return;
+    }
+    lastDriverPollMs_ = now;
+    tmc_->refreshDiagnostics();
+
+    if (state_ == SystemState::Fault) {
+        return;
+    }
+    if (driverFaultPresent()) {
+        fail(FaultCode::MotorDriverFault);
+    }
+}
+
+bool PumpService::injectMotorDriverFault() {
+    if (isBusy()) {
+        return false;
+    }
+    injectedDriverFault_ = true;
+    return fail(FaultCode::MotorDriverFault);
+}
+
 bool PumpService::acknowledgeFault() {
     if (state_ != SystemState::Fault) {
         return true;
@@ -398,10 +444,23 @@ bool PumpService::acknowledgeFault() {
     if (safety_ != nullptr && !safety_->acknowledgeFault()) {
         return false;
     }
+    if (lastFault_ == FaultCode::MotorDriverFault) {
+        if (tmc_ != nullptr && tmc_->isEnabled() && tmc_->isReady()) {
+            tmc_->refreshDiagnostics();
+        }
+        if (driverFaultPresent() && !injectedDriverFault_) {
+            return false;
+        }
+        injectedDriverFault_ = false;
+    }
     if (logger_ != nullptr && lastFault_ == FaultCode::EmergencyStop) {
         JsonDocument fields;
         fields["fault"] = "emergency_stop";
         logger_->log("estop_acknowledged", fields);
+    } else if (logger_ != nullptr && lastFault_ == FaultCode::MotorDriverFault) {
+        JsonDocument fields;
+        fields["fault"] = "motor_driver_fault";
+        logger_->log("driver_fault_acknowledged", fields);
     }
     lastFault_ = FaultCode::None;
     enterIdle();
@@ -442,6 +501,8 @@ void PumpService::update() {
         }
         return;
     }
+
+    pollDriverDiagnostics();
 
     if (state_ != SystemState::Dispensing && state_ != SystemState::Calibrating) {
         return;

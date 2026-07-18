@@ -7,6 +7,7 @@
 #include "models/FluidProfile.h"
 #include "models/OperationStatus.h"
 #include "motor/StepperController.h"
+#include "motor/TmcDriverController.h"
 #include "safety/SafetyController.h"
 #include "storage/ProfileRepository.h"
 #include "valve/ValveController.h"
@@ -36,7 +37,8 @@ public:
         ValveController& valve,
         ProfileRepository& profiles,
         SafetyController& safety,
-        EventLogger& logger
+        EventLogger& logger,
+        TmcDriverController& tmc
     );
 
     void update();
@@ -45,6 +47,7 @@ public:
     bool startCalibration(const String& profileId, uint32_t durationMs);
     void requestStop();
     bool acknowledgeFault();
+    bool injectMotorDriverFault();
 
     bool submitCalibrationMeasurement(float measuredMl);
     bool removeCalibrationSample(size_t index);
@@ -91,12 +94,15 @@ private:
     bool startAntiDripMotor();
     void beginValvePostClose();
     void completeValvePostClose();
+    void pollDriverDiagnostics();
+    bool driverFaultPresent() const;
 
     StepperController* stepper_ = nullptr;
     ValveController* valve_ = nullptr;
     ProfileRepository* profiles_ = nullptr;
     SafetyController* safety_ = nullptr;
     EventLogger* logger_ = nullptr;
+    TmcDriverController* tmc_ = nullptr;
 
     SystemState state_ = SystemState::Booting;
     FaultCode lastFault_ = FaultCode::None;
@@ -126,6 +132,9 @@ private:
     bool antiDripEnabled_ = false;
     int32_t antiDripReverseSteps_ = 0;
     uint32_t antiDripSpeed_ = 0;
+
+    uint32_t lastDriverPollMs_ = 0;
+    bool injectedDriverFault_ = false;
 
     std::vector<CalibrationSample> samples_;
 };
