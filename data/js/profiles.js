@@ -44,11 +44,11 @@ async function refreshValveHardwareNote() {
   pumpIdSelect.disabled = count < 2;
   pumpCountNote.textContent =
     count < 2
-      ? "Second/third pump paths are disabled in Diagnostics (pump count = 1). Profiles stay on Pump 1."
+      ? "Second/third pump paths are disabled in Configuration (pump count = 1). Profiles stay on Pump 1."
       : `Pump count = ${count}. Bind this profile to an enabled path. Only one path moves at a time.`;
   valveHwNote.textContent = settings.valve_hardware_present
-    ? "Valve hardware is enabled in Diagnostics settings. Timing below applies when this profile uses the valve."
-    : "Valve hardware is currently disabled in Diagnostics settings. Enable it there before profile valve timing takes effect.";
+    ? "Valve hardware is enabled in Configuration. Timing below applies when this profile uses the valve."
+    : "Valve hardware is currently disabled in Configuration. Enable it there before profile valve timing takes effect.";
 }
 
 function pumpIdRequiredDisabled(pumpId, count) {

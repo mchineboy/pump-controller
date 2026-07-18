@@ -22,7 +22,7 @@ Puschmann’s NEMA 17 peristaltic pump and this ESP32 controller.
 | Wiring | Hookup wire and connectors | Wire, ferrules or crimp terminals, and connectors suitable for 12 V power, motor phases, and low-voltage control | 1 set | Yes | Keep motor wiring separated from ESP32 signal wiring where practical |
 | Thermal | TMC2209 heatsink | Small adhesive heatsink appropriate for the StepStick module | 1 | Recommended | Often included with the BIGTREETECH driver package |
 | Safety | Fuse | Inline fuse and holder sized for the 12 V input, approximately 3 A | 1 | Recommended | Place near the 12 V power-entry point |
-| Safety | Emergency stop switch | Normally-open switch or latching ESTOP that connects GPIO 32 to GND when asserted | 1 | Optional | Enable in Diagnostics; see [HARDWARE.md](HARDWARE.md) |
+| Safety | Emergency stop switch | Normally-open switch or latching ESTOP that connects GPIO 32 to GND when asserted | 1 | Optional | Enable in Configuration; see [HARDWARE.md](HARDWARE.md) |
 | Sensing | Load cell | Strain-gauge load cell, typically 1–5 kg capacity, matched mount for vessel | 1 | Optional | Phase 4 verification; pair with HX711 |
 | Sensing | HX711 amplifier | HX711 load-cell ADC module, ESP32-compatible logic levels | 1 | Optional | DT GPIO 19, SCK GPIO 18 by default |
 | Sensing | Temperature sensor | DS18B20 1-Wire digital thermometer | 1 | Optional | GPIO 23 with 4.7 kΩ pull-up to 3.3 V |
@@ -31,7 +31,7 @@ Puschmann’s NEMA 17 peristaltic pump and this ESP32 controller.
 
 ## Multi-pump builds (2–3 paths)
 
-Firmware supports up to **three** sequential pump paths (`pump_count` in Diagnostics).
+Firmware supports up to **three** sequential pump paths (`pump_count` in Configuration).
 For each **additional** path beyond the first, plan on:
 
 | Item | Qty per extra path | Notes |

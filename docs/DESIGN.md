@@ -44,7 +44,7 @@ Product branding is use-case agnostic: **Fluid Dispensing Controller**.
 ## Multi-pump model
 
 - **Paths:** `pump_1` … `pump_3` (compile-time pins in `Config.h` / `platformio.ini`).
-- **Setting:** `GlobalSettings.pumpCount` (NVS), default `1`. Diagnostics UI sets 1–3.
+- **Setting:** `GlobalSettings.pumpCount` (NVS), default `1`. Configuration UI sets 1–3.
 - **Binding:** each `FluidProfile` has `pump_id`; dispense/calibrate select that path’s STEP/DIR/EN (+ optional valve).
 - **Motion:** one global busy operation — no concurrent STEP generation in this cut.
 - **TMC UART:** shared RX/TX; per-driver address `0b00` / `0b01` / `0b10`.
@@ -64,6 +64,17 @@ Pin tables and strapping notes: [HARDWARE.md](HARDWARE.md), [WIRING.md](WIRING.m
 Firmware never erases NVS on boot or upgrade. Explicit **Factory Reset**
 (`POST /api/factory-reset` with `{"confirm":"FACTORY_RESET"}`) clears NVS
 namespaces and reseeds defaults, then reboots.
+
+## Web UI responsibilities
+
+- **Configuration:** durable device, pump, safety, sensor, feedback, and
+  motor-driver settings; scale setup; Factory Reset.
+- **Diagnostics:** live hardware readings, fault simulation/acknowledgement,
+  flow-session reset, and event log.
+- **Hardware:** read-only wiring and pin-map reference.
+
+Configuration uses outcome-oriented labels and keeps electrical details behind
+progressive disclosure. Diagnostics does not mutate durable hardware settings.
 
 ## Board
 

@@ -6,7 +6,7 @@ Index of project documentation for the ESP32 fluid dispensing controller.
 
 | Document | Description |
 |----------|-------------|
-| [DESIGN.md](DESIGN.md) | Software design summary: calibration/dispense rules, web stack, NVS storage, multi-pump model, safety, and phased feature status. |
+| [DESIGN.md](DESIGN.md) | Software design summary: calibration/dispense rules, Configuration vs Diagnostics UI responsibilities, NVS storage, multi-pump model, safety, and phased feature status. |
 | [HARDWARE.md](HARDWARE.md) | Mechanical pump credit, electronics overview, optional sensors, **multi-pump pin map** (1–3 paths), safety notes, enclosure CAD links. |
 | [BOM.md](BOM.md) | Bill of materials for a complete build; notes how motor/driver/pump parts scale with pump count. |
 | [WIRING.md](WIRING.md) | Default ESP32 / TMC2209 pin map for pump 1–3, power distribution, UART addressing, and pre-power safety checks. |

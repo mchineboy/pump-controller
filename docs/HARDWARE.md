@@ -52,7 +52,7 @@ Recommended wiring:
   to GND when pressed/latched.
 - Keep the switch on a short, dedicated cable; do not share with motor power
   returns in a way that injects noise onto the sense line.
-- Enable “Emergency stop input” in the Diagnostics settings before relying on
+- Enable “Use the wired emergency-stop input” in Configuration before relying on
   the switch. When enabled, ESTOP is polled in the firmware loop (not via HTTP).
 - On assert: step pulses stop, valve closes, driver disables, system enters
   fault. Clear the switch, then acknowledge the fault in the UI before starting
@@ -71,7 +71,8 @@ Wiring notes:
 - Keep STEP/DIR/ENABLE wired regardless; UART only configures current,
   microsteps, and StealthChop. Motion remains STEP/DIR.
 - Sense resistor assumed **0.11 Ω** (standard on BTT TMC2209 V1.3).
-- Enable “TMC2209 UART” in Diagnostics and set run/hold current and microsteps.
+- Open Configuration → Advanced motor-driver settings, enable UART, and set
+  run/hold current and microsteps.
   On miswire or no response, boot continues in STEP/DIR-only mode and logs
   `tmc_uart_warning` / `tmc_uart_no_response`.
 
@@ -91,8 +92,8 @@ Recommended wiring:
 
 - Float switch or optical liquid sensor that asserts empty when the reservoir is
   low/dry.
-- Default polarity: empty = LOW (enable “Empty signal is active-low” in
-  Diagnostics). Invert if your sensor is active-high.
+- Default polarity: empty = LOW (Configuration labels this “Sensor connects the
+  input to ground when empty”). Invert if your sensor is active-high.
 - Policy options: **warn** (status only), **block** (refuse new dispense/calibrate),
   **fault** (also stop an in-progress operation with `reservoir_empty`).
 - With the sensor disabled, dispense behavior is unchanged.
@@ -115,7 +116,8 @@ Wiring:
 
 Usage:
 
-- Enable in Diagnostics, then **Tare** with the empty vessel on the cell
+- Enable and calibrate the scale in Configuration, then set zero with the empty
+  vessel on the cell
 - Place a known mass and **Calibrate** (stores scale factor + offset in NVS)
 - Status shows grams and optional mL via fluid density (g/mL)
 - Miswire/timeout does not brick boot; logs `loadcell_warning`
@@ -132,7 +134,7 @@ Wiring:
 
 Usage:
 
-- Enable in Diagnostics; optional warn-low / warn-high thresholds (°C)
+- Enable in Configuration; optional warn-low / warn-high thresholds (°C)
 - Status shows live °C; threshold crossings log `temp_threshold` (warn only, no fault)
 - Absent sensor does not brick boot (`temp_no_device` / `temp_warning`)
 
@@ -150,14 +152,14 @@ Wiring:
 
 Usage:
 
-- Enable in Diagnostics and set pulses/liter
+- Enable in Configuration and set pulses/liter
 - Status shows mL/min and cumulative mL; **Reset cumulative** clears the session
   total (`POST /api/flow/reset`)
 - Does not alter dispense control yet (closed-loop is #20)
 
 ## Dispense feedback / closed-loop (optional)
 
-Diagnostics setting **Dispense feedback**:
+Configuration section **Volume accuracy**:
 
 - `open_loop` (default): step-count only
 - `verify_after`: run open-loop, then compare load-cell or flow volume to request
@@ -172,8 +174,9 @@ Source: `auto` (load cell if ready, else flow), `load_cell`, or `flow`. Density
 
 Default is **one path** (`pump_count = 1`), identical to prior single-pump builds.
 
-Enable **Pump count = 2 or 3** in Diagnostics to activate additional STEP/DIR/ENABLE
-paths. Bind each fluid profile to `pump_1`, `pump_2`, or `pump_3` on the Profiles page.
+Set **Number of installed pumps = 2 or 3** in Configuration to activate
+additional STEP/DIR/ENABLE paths. Bind each fluid profile to `pump_1`,
+`pump_2`, or `pump_3` on the Profiles page.
 
 | Path | STEP | DIR | ENABLE | Optional valve | TMC UART address |
 |------|------|-----|--------|----------------|------------------|

@@ -142,7 +142,7 @@ flowchart TB
 | GPIO **17** (`TX`) | `PDN_UART` | Configure current / microsteps / StealthChop |
 | GPIO **16** (`RX`) | UART return / PDN sense per silkscreen | Single-wire UART path on many StepSticks |
 
-Enable “TMC2209 UART” in Diagnostics after wiring. Motion still uses STEP/DIR;
+Enable motor-driver UART in Configuration after wiring. Motion still uses STEP/DIR;
 UART only configures the driver. See [HARDWARE.md](HARDWARE.md).
 
 ### Valve (anti-drip / cutoff)
@@ -153,7 +153,7 @@ UART only configures the driver. See [HARDWARE.md](HARDWARE.md).
 | Valve driver power | Per valve datasheet | Often not 3.3 V logic-level coil drive |
 | Valve ports | Fluid line after pump | Chemically compatible, normally closed preferred |
 
-Mark “Valve hardware present” in Diagnostics before use.
+Mark the matching pump as having a shutoff valve in Configuration before use.
 
 ### Emergency stop
 
@@ -162,7 +162,7 @@ Mark “Valve hardware present” in Diagnostics before use.
 | GPIO **32** | One side of NO ESTOP |
 | `GND` | Other side of NO ESTOP |
 
-Active-low with internal pull-up. Enable in Diagnostics before relying on it.
+Active-low with internal pull-up. Enable in Configuration before relying on it.
 
 ### Reservoir empty sense
 
@@ -174,7 +174,7 @@ Active-low with internal pull-up. Enable in Diagnostics before relying on it.
 
 ### Stepper driver control — pump 2 / pump 3 (optional)
 
-Enable **Pump count = 2 or 3** in Diagnostics. Strap each extra TMC2209 UART
+Set **Number of installed pumps = 2 or 3** in Configuration. Strap each extra TMC2209 UART
 address via MS1/MS2 (`0b01` for pump 2, `0b10` for pump 3).
 
 | ESP32 GPIO | Signal | Notes |
@@ -197,11 +197,11 @@ address via MS1/MS2 (`0b01` for pump 2, `0b10` for pump 3).
 | Pump 1 DIR | 27 | Yes | Level to TMC #1 |
 | Pump 1 ENABLE | 25 | Yes | Active low |
 | Pump 1 VALVE | 33 | No | To valve driver only |
-| Pump 2 STEP | 5 | No | Diagnostics pump count ≥ 2 |
+| Pump 2 STEP | 5 | No | Configuration pump count ≥ 2 |
 | Pump 2 DIR | 13 | No | |
 | Pump 2 ENABLE | 14 | No | Active low |
 | Pump 2 VALVE | 21 | No | To valve driver only |
-| Pump 3 STEP | 22 | No | Diagnostics pump count ≥ 3 |
+| Pump 3 STEP | 22 | No | Configuration pump count ≥ 3 |
 | Pump 3 DIR | 15 | No | Strapping |
 | Pump 3 ENABLE | 2 | No | Active low |
 | Pump 3 VALVE | 12 | No | Strapping; valve driver only |
