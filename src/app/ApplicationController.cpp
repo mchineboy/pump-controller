@@ -1,0 +1,162 @@
+#include "app/ApplicationController.h"
+
+#include <LittleFS.h>
+#include <WiFi.h>
+
+#include "Config.h"
+#include "secrets.h"
+
+namespace {
+constexpr uint32_t kWifiConnectTimeoutMs = 30000;
+wifi_err_reason_t gLastDisconnectReason = WIFI_REASON_UNSPECIFIED;
+
+void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+    if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+        gLastDisconnectReason =
+            static_cast<wifi_err_reason_t>(info.wifi_sta_disconnected.reason);
+    }
+}
+
+const char* wifiStatusName(wl_status_t status) {
+    switch (status) {
+        case WL_IDLE_STATUS: return "idle";
+        case WL_NO_SSID_AVAIL: return "no_ssid";
+        case WL_SCAN_COMPLETED: return "scan_completed";
+        case WL_CONNECTED: return "connected";
+        case WL_CONNECT_FAILED: return "connect_failed";
+        case WL_CONNECTION_LOST: return "connection_lost";
+        case WL_DISCONNECTED: return "disconnected";
+        default: return "unknown";
+    }
+}
+}
+
+void ApplicationController::beginSafeOutputs() {
+    pinMode(PUMP_STEP_PIN, OUTPUT);
+    pinMode(PUMP_DIR_PIN, OUTPUT);
+    pinMode(PUMP_ENABLE_PIN, OUTPUT);
+    digitalWrite(PUMP_STEP_PIN, LOW);
+    digitalWrite(PUMP_DIR_PIN, LOW);
+    digitalWrite(PUMP_ENABLE_PIN, HIGH);  // driver disabled (active-low enable)
+}
+
+void ApplicationController::beginNetwork() {
+    const GlobalSettings settings = settings_.get();
+    WiFi.persistent(false);
+    WiFi.onEvent(onWifiEvent);
+    WiFi.setHostname(settings.hostname.c_str());
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
+    WiFi.disconnect(true, true);
+    delay(200);
+
+    Serial.print("STA MAC: ");
+    Serial.println(WiFi.macAddress());
+    Serial.print("Password length: ");
+    Serial.println(strlen(Secrets::kWifiPassword));
+
+    int8_t channel = 0;
+    uint8_t bssid[6] = {};
+    bool targetFound = false;
+
+    const int networkCount = WiFi.scanNetworks(/*async=*/false, /*hidden=*/true);
+    for (int i = 0; i < networkCount; ++i) {
+        if (WiFi.SSID(i) != Secrets::kWifiSsid) {
+            continue;
+        }
+        targetFound = true;
+        channel = WiFi.channel(i);
+        const uint8_t* foundBssid = WiFi.BSSID(i);
+        if (foundBssid != nullptr) {
+            memcpy(bssid, foundBssid, sizeof(bssid));
+        }
+        Serial.print("Target Wi-Fi found; RSSI: ");
+        Serial.print(WiFi.RSSI(i));
+        Serial.print(" dBm, channel: ");
+        Serial.print(channel);
+        Serial.print(", encryption: ");
+        Serial.print(static_cast<int>(WiFi.encryptionType(i)));
+        Serial.print(", BSSID: ");
+        Serial.println(WiFi.BSSIDstr(i));
+        break;
+    }
+    if (!targetFound) {
+        Serial.println("Target Wi-Fi SSID was not found by the ESP32.");
+    }
+    WiFi.scanDelete();
+
+    if (targetFound && channel > 0) {
+        WiFi.begin(Secrets::kWifiSsid, Secrets::kWifiPassword, channel, bssid);
+    } else {
+        WiFi.begin(Secrets::kWifiSsid, Secrets::kWifiPassword);
+    }
+
+    Serial.print("Connecting to Wi-Fi");
+    const uint32_t startedAt = millis();
+    while (WiFi.status() != WL_CONNECTED &&
+           millis() - startedAt < kWifiConnectTimeoutMs) {
+        delay(250);
+        Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.print("Wi-Fi SSID: ");
+        Serial.println(WiFi.SSID());
+        Serial.print("DHCP IP: ");
+        Serial.println(WiFi.localIP());
+        return;
+    }
+
+    Serial.print("Wi-Fi status: ");
+    Serial.println(wifiStatusName(WiFi.status()));
+    Serial.print("Disconnect reason: ");
+    Serial.print(static_cast<int>(gLastDisconnectReason));
+    Serial.print(" (");
+    Serial.print(WiFi.disconnectReasonName(gLastDisconnectReason));
+    Serial.println(")");
+    Serial.println("Wi-Fi connection failed; starting fallback access point.");
+    WiFi.disconnect(true, true);
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(Config::kApSsid, Config::kApPassword);
+    Serial.print("Fallback AP SSID: ");
+    Serial.println(Config::kApSsid);
+    Serial.print("Fallback AP IP: ");
+    Serial.println(WiFi.softAPIP());
+}
+
+void ApplicationController::begin() {
+    Serial.begin(115200);
+    delay(200);
+    Serial.println();
+    Serial.println("Pump Controller boot");
+
+    beginSafeOutputs();
+
+    if (!LittleFS.begin(true)) {
+        Serial.println("LittleFS mount failed");
+    }
+
+    settings_.begin();
+    logger_.begin();
+    logger_.setEnabled(settings_.get().loggingEnabled);
+    profiles_.begin();
+
+    const GlobalSettings settings = settings_.get();
+    stepper_.begin(PUMP_STEP_PIN, PUMP_DIR_PIN, PUMP_ENABLE_PIN);
+    valve_.begin(PUMP_VALVE_PIN, settings.valveHardwarePresent, true);
+    safety_.begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
+
+    pump_.begin(stepper_, valve_, profiles_, safety_, logger_);
+    beginNetwork();
+    web_.begin(pump_, profiles_, settings_, stepper_, valve_, safety_, logger_);
+
+    logger_.log("boot");
+    Serial.println("Boot complete. Previous operations are not resumed.");
+}
+
+void ApplicationController::loop() {
+    safety_.update();
+    pump_.update();
+    web_.update();
+}

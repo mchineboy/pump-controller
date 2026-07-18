@@ -1,0 +1,29 @@
+#pragma once
+
+#include "diagnostics/EventLogger.h"
+#include "motor/StepperController.h"
+#include "pump/PumpService.h"
+#include "safety/SafetyController.h"
+#include "storage/ProfileRepository.h"
+#include "storage/SettingsRepository.h"
+#include "valve/ValveController.h"
+#include "web/WebServerController.h"
+
+class ApplicationController {
+public:
+    void begin();
+    void loop();
+
+private:
+    void beginSafeOutputs();
+    void beginNetwork();
+
+    StepperController stepper_;
+    ValveController valve_;
+    ProfileRepository profiles_;
+    SettingsRepository settings_;
+    SafetyController safety_;
+    EventLogger logger_;
+    PumpService pump_;
+    WebServerController web_;
+};

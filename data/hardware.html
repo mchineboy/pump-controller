@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hardware — Pump Controller</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <p class="brand">Precision Pump Controller</p>
+    <nav>
+      <a href="/">Dispense</a>
+      <a href="/calibration.html">Calibration</a>
+      <a href="/profiles.html">Profiles</a>
+      <a href="/diagnostics.html">Diagnostics</a>
+      <a href="/hardware.html" aria-current="page">Hardware</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h1>Hardware</h1>
+      <p class="meta">ELEGOO ESP32 Dev Board · STEP/DIR/ENABLE · optional valve</p>
+      <dl class="summary">
+        <div><dt>STEP</dt><dd>GPIO 26</dd></div>
+        <div><dt>DIR</dt><dd>GPIO 27</dd></div>
+        <div><dt>ENABLE</dt><dd>GPIO 25 (active low)</dd></div>
+        <div><dt>VALVE</dt><dd>GPIO 33 (optional)</dd></div>
+        <div><dt>ESTOP</dt><dd>GPIO 32 (optional, active low)</dd></div>
+      </dl>
+      <p id="live-status" class="status-line">Loading status…</p>
+    </section>
+  </main>
+
+  <script type="module" src="/js/hardware.js"></script>
+</body>
+</html>

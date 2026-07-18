@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calibration — Pump Controller</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <p class="brand">Precision Pump Controller</p>
+    <nav>
+      <a href="/">Dispense</a>
+      <a href="/calibration.html" aria-current="page">Calibration</a>
+      <a href="/profiles.html">Profiles</a>
+      <a href="/diagnostics.html">Diagnostics</a>
+      <a href="/hardware.html">Hardware</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h1>Calibration</h1>
+      <p class="meta">
+        Recalibrate after changing fluid, tubing, speed, valve timing, or head height.
+        Calibration speed must match dispensing speed. Prefer at least 3 samples.
+      </p>
+
+      <dl id="calibration-summary" class="summary">
+        <div><dt>Status</dt><dd id="cal-status">—</dd></div>
+        <div><dt>Steps / mL</dt><dd id="cal-steps">—</dd></div>
+        <div><dt>mL / second</dt><dd id="cal-rate">—</dd></div>
+        <div><dt>Speed</dt><dd id="cal-speed">—</dd></div>
+      </dl>
+
+      <form id="motor-form">
+        <label>
+          Calibration / dispense speed (steps/second)
+          <input id="speed" type="number" min="100" max="5000" step="1" required>
+        </label>
+        <label>
+          Acceleration (steps/second²)
+          <input id="accel" type="number" min="100" max="20000" step="1" required>
+        </label>
+        <div class="actions">
+          <button type="submit">Save motor settings</button>
+        </div>
+      </form>
+
+      <form id="calibration-form">
+        <label>
+          Fluid profile
+          <select id="profile" name="profile_id"></select>
+        </label>
+
+        <label>
+          Duration
+          <select id="duration" name="duration_ms">
+            <option value="1000" selected>1 second</option>
+            <option value="2000">2 seconds</option>
+            <option value="5000">5 seconds</option>
+            <option value="10000">10 seconds</option>
+          </select>
+        </label>
+
+        <div class="actions">
+          <button type="submit" id="start-cal-btn">Dispense for calibration</button>
+        </div>
+      </form>
+    </section>
+
+    <dialog id="confirm-dialog">
+      <form method="dialog" id="confirm-form">
+        <h2>Start calibration</h2>
+        <p id="confirm-text">
+          This will run the selected pump for the chosen duration.
+        </p>
+        <ul>
+          <li>The line is fully primed.</li>
+          <li>The outlet is over the measuring vessel.</li>
+          <li>The receiving vessel is empty or tared.</li>
+          <li>No other operation is active.</li>
+        </ul>
+        <div class="actions">
+          <button value="cancel">Cancel</button>
+          <button value="confirm" class="primary">Start Calibration</button>
+        </div>
+      </form>
+    </dialog>
+
+    <section class="panel" id="measurement-panel" hidden>
+      <h2>Enter measurement</h2>
+      <p id="measurement-hint" class="meta"></p>
+      <form id="measurement-form">
+        <label>
+          Measured volume (mL)
+          <input id="measured-ml" type="number" min="0.01" step="0.01" required>
+        </label>
+        <div class="actions">
+          <button type="submit">Save Sample</button>
+          <button type="button" id="discard-btn" class="danger">Discard</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" id="samples-panel" hidden>
+      <h2>Samples</h2>
+      <ul id="sample-list"></ul>
+      <p id="sample-stats" class="meta"></p>
+      <div class="actions">
+        <button type="button" id="save-cal-btn">Save Calibration</button>
+        <button type="button" id="repeat-btn">Repeat Test</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Calibration history</h2>
+      <ul id="history-list"></ul>
+    </section>
+  </main>
+
+  <script type="module" src="/js/calibration.js"></script>
+</body>
+</html>

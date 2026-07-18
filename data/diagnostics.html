@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diagnostics — Pump Controller</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <p class="brand">Precision Pump Controller</p>
+    <nav>
+      <a href="/">Dispense</a>
+      <a href="/calibration.html">Calibration</a>
+      <a href="/profiles.html">Profiles</a>
+      <a href="/diagnostics.html" aria-current="page">Diagnostics</a>
+      <a href="/hardware.html">Hardware</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h1>Settings</h1>
+      <form id="settings-form">
+        <label>
+          Device name
+          <input id="device-name" type="text" required>
+        </label>
+        <label class="checkbox">
+          <input id="logging" type="checkbox">
+          Event logging enabled
+        </label>
+        <label class="checkbox">
+          <input id="web-auth" type="checkbox">
+          Require local password (admin / secrets.h)
+        </label>
+        <div class="actions">
+          <button type="submit">Save settings</button>
+        </div>
+      </form>
+      <p id="settings-status" class="meta"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Event log</h2>
+      <div class="actions">
+        <button type="button" id="refresh-log-btn">Refresh</button>
+        <button type="button" id="clear-log-btn" class="danger">Clear log</button>
+      </div>
+      <ul id="event-list"></ul>
+    </section>
+  </main>
+
+  <script type="module" src="/js/diagnostics.js"></script>
+</body>
+</html>

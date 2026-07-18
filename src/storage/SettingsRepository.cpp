@@ -1,0 +1,54 @@
+#include "storage/SettingsRepository.h"
+
+#include <Preferences.h>
+
+#include "Config.h"
+
+namespace {
+Preferences prefs;
+constexpr const char* kNamespace = "pump_settings";
+}  // namespace
+
+bool SettingsRepository::begin() {
+    settings_.deviceName = Config::kDeviceName;
+    settings_.hostname = Config::kHostname;
+    settings_.wifiMode = "ap";
+    settings_.emergencyStopEnabled = false;
+    settings_.valveHardwarePresent = false;
+
+    if (!prefs.begin(kNamespace, false)) {
+        return true;
+    }
+
+    settings_.deviceName = prefs.getString("device_name", settings_.deviceName);
+    settings_.hostname = prefs.getString("hostname", settings_.hostname);
+    settings_.wifiMode = prefs.getString("wifi_mode", settings_.wifiMode);
+    settings_.emergencyStopEnabled =
+        prefs.getBool("estop_en", settings_.emergencyStopEnabled);
+    settings_.driverUartEnabled =
+        prefs.getBool("driver_uart", settings_.driverUartEnabled);
+    settings_.loggingEnabled = prefs.getBool("logging", settings_.loggingEnabled);
+    settings_.webAuthEnabled = prefs.getBool("web_auth", settings_.webAuthEnabled);
+    settings_.valveHardwarePresent =
+        prefs.getBool("valve_hw", settings_.valveHardwarePresent);
+    prefs.end();
+    return true;
+}
+
+bool SettingsRepository::save(const GlobalSettings& settings) {
+    settings_ = settings;
+    if (!prefs.begin(kNamespace, false)) {
+        return false;
+    }
+
+    prefs.putString("device_name", settings_.deviceName);
+    prefs.putString("hostname", settings_.hostname);
+    prefs.putString("wifi_mode", settings_.wifiMode);
+    prefs.putBool("estop_en", settings_.emergencyStopEnabled);
+    prefs.putBool("driver_uart", settings_.driverUartEnabled);
+    prefs.putBool("logging", settings_.loggingEnabled);
+    prefs.putBool("web_auth", settings_.webAuthEnabled);
+    prefs.putBool("valve_hw", settings_.valveHardwarePresent);
+    prefs.end();
+    return true;
+}

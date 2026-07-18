@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profiles — Pump Controller</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <p class="brand">Precision Pump Controller</p>
+    <nav>
+      <a href="/">Dispense</a>
+      <a href="/calibration.html">Calibration</a>
+      <a href="/profiles.html" aria-current="page">Profiles</a>
+      <a href="/diagnostics.html">Diagnostics</a>
+      <a href="/hardware.html">Hardware</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h1>Fluid profiles</h1>
+      <p class="meta">Each chemistry path keeps its own calibration, speed, and limits.</p>
+
+      <label>
+        Profile
+        <select id="profile"></select>
+      </label>
+
+      <form id="profile-form">
+        <label>
+          Display name
+          <input id="name" type="text" required>
+        </label>
+        <label class="checkbox">
+          <input id="enabled" type="checkbox">
+          Enabled
+        </label>
+        <label>
+          Speed (steps/second)
+          <input id="speed" type="number" min="100" max="5000" required>
+        </label>
+        <label>
+          Acceleration (steps/second²)
+          <input id="accel" type="number" min="100" max="20000" required>
+        </label>
+        <label>
+          Minimum dispense (mL)
+          <input id="min-ml" type="number" min="0.1" step="0.1" required>
+        </label>
+        <label>
+          Maximum dispense (mL)
+          <input id="max-ml" type="number" min="1" step="1" required>
+        </label>
+        <label class="checkbox">
+          <input id="dir-inv" type="checkbox">
+          Invert direction
+        </label>
+        <p id="cal-note" class="meta"></p>
+        <div class="actions">
+          <button type="submit">Save profile</button>
+          <button type="button" id="reset-cal-btn" class="danger">Reset calibration</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Configuration</h2>
+      <div class="actions">
+        <button type="button" id="export-btn">Export config</button>
+        <label class="file-button">
+          Import config
+          <input id="import-file" type="file" accept="application/json,.json" hidden>
+        </label>
+      </div>
+      <p id="config-status" class="meta"></p>
+    </section>
+  </main>
+
+  <script type="module" src="/js/profiles.js"></script>
+</body>
+</html>

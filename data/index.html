@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pump Controller</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <p class="brand">Precision Pump Controller</p>
+    <nav>
+      <a href="/" aria-current="page">Dispense</a>
+      <a href="/calibration.html">Calibration</a>
+      <a href="/profiles.html">Profiles</a>
+      <a href="/diagnostics.html">Diagnostics</a>
+      <a href="/hardware.html">Hardware</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h1>Dispense</h1>
+      <p id="connection" class="status-line">Connecting…</p>
+      <p id="system-state" class="status-line">State: —</p>
+
+      <form id="dispense-form">
+        <label>
+          Fluid profile
+          <select id="profile" name="profile_id"></select>
+        </label>
+
+        <label>
+          Requested volume (mL)
+          <input id="volume" name="volume_ml" type="number" min="1" max="1000" step="0.1" value="500" required>
+        </label>
+
+        <p id="estimate" class="meta">Estimated duration: —</p>
+        <p id="calibration-meta" class="meta">Calibration: —</p>
+
+        <div class="actions">
+          <button type="submit" id="dispense-btn">Dispense</button>
+          <button type="button" id="stop-btn" class="danger">Stop</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" id="progress-panel" hidden>
+      <h2>Active operation</h2>
+      <p id="progress-label">—</p>
+      <progress id="progress-bar" max="100" value="0"></progress>
+      <p id="progress-detail" class="meta"></p>
+    </section>
+
+    <section class="panel" id="fault-panel" hidden>
+      <h2>Fault</h2>
+      <p id="fault-message"></p>
+      <button type="button" id="ack-fault-btn">Acknowledge</button>
+    </section>
+  </main>
+
+  <script type="module" src="/js/dashboard.js"></script>
+</body>
+</html>
