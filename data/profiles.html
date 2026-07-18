@@ -57,6 +57,29 @@
           <input id="dir-inv" type="checkbox">
           Invert direction
         </label>
+
+        <h2>Valve (optional)</h2>
+        <p id="valve-hw-note" class="meta">
+          Valve timing applies only when valve hardware is enabled in Diagnostics settings
+          and a matched valve driver is wired. Do not drive a piezo valve from GPIO directly.
+        </p>
+        <label class="checkbox">
+          <input id="valve-enabled" type="checkbox">
+          Use valve for this profile
+        </label>
+        <label class="checkbox">
+          <input id="valve-active-high" type="checkbox">
+          Active-high valve drive
+        </label>
+        <label>
+          Pre-open delay (ms)
+          <input id="valve-pre-open" type="number" min="0" max="5000" step="1" required>
+        </label>
+        <label>
+          Post-motor close delay (ms)
+          <input id="valve-post-close" type="number" min="0" max="5000" step="1" required>
+        </label>
+
         <p id="cal-note" class="meta"></p>
         <div class="actions">
           <button type="submit">Save profile</button>

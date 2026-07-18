@@ -8,6 +8,7 @@ import {
 const deviceName = document.getElementById("device-name");
 const logging = document.getElementById("logging");
 const webAuth = document.getElementById("web-auth");
+const valveHw = document.getElementById("valve-hw");
 const settingsStatus = document.getElementById("settings-status");
 const eventList = document.getElementById("event-list");
 
@@ -16,6 +17,7 @@ async function loadSettings() {
   deviceName.value = settings.device_name;
   logging.checked = settings.logging_enabled;
   webAuth.checked = settings.web_auth_enabled;
+  valveHw.checked = settings.valve_hardware_present;
 }
 
 async function loadEvents() {
@@ -39,7 +41,8 @@ document.getElementById("settings-form").addEventListener("submit", async (event
     await updateSettings({
       device_name: deviceName.value,
       logging_enabled: logging.checked,
-      web_auth_enabled: webAuth.checked
+      web_auth_enabled: webAuth.checked,
+      valve_hardware_present: valveHw.checked
     });
     settingsStatus.textContent = "Settings saved.";
   } catch (error) {
