@@ -30,7 +30,8 @@ mechanical design.
 
 Full part list: [BOM.md](BOM.md).  
 Wiring diagrams and connection tables: [WIRING.md](WIRING.md).  
-Dry-side enclosure STEP models: [../cad/enclosure/](../cad/enclosure/).
+Dry-side enclosure STEP models: [../cad/enclosure/](../cad/enclosure/)
+([v1 monolithic](../cad/enclosure/v1/), [v2 sectional](../cad/enclosure/v2/)).
 
 ## Safety notes
 

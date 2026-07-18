@@ -1,6 +1,6 @@
 #!/usr/bin/env freecadcmd
 """
-Sectional dry-side electronics enclosure (per-print ≤ 200 mm).
+v2 — Sectional dry-side electronics enclosure (per-print ≤ 200 mm).
 
 Modules:
   controller  — breadboard + buck bay + barrel jack + USB + fan lid
@@ -10,9 +10,11 @@ Modules:
 
 Mating: +X tongue into next module's −X groove; M3 clamp holes at the joint.
 
+Writes only into cad/enclosure/v2/ — does not delete or overwrite v1 exports.
+
 Run:
   /Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd \\
-    cad/enclosure/generate_enclosure.py
+    cad/enclosure/v2/generate_enclosure_v2.py
 """
 
 from __future__ import annotations
@@ -96,7 +98,7 @@ def _out_dir() -> str:
     try:
         return os.path.dirname(os.path.abspath(__file__))
     except NameError:
-        return os.path.abspath("cad/enclosure")
+        return os.path.abspath("cad/enclosure/v2")
 
 
 OUT_DIR = _out_dir()
@@ -533,21 +535,10 @@ def main():
             total += (DRIVER_X1_L if kind == "x1" else DRIVER_X2_L) - TONGUE_DEPTH
         print(f"assembly_{n}pump assembled length ≈ {total:.1f} mm")
 
-    fcstd = os.path.join(OUT_DIR, "enclosure.FCStd")
+    fcstd = os.path.join(OUT_DIR, "enclosure_sectional.FCStd")
     doc.recompute()
     doc.saveAs(fcstd)
     print(f"Wrote {fcstd}")
-
-    # Remove obsolete monolithic exports if present
-    for obsolete in (
-        "enclosure_base.step",
-        "enclosure_lid.step",
-        "enclosure_assembly.step",
-    ):
-        old = os.path.join(OUT_DIR, obsolete)
-        if os.path.exists(old):
-            os.remove(old)
-            print(f"Removed obsolete {obsolete}")
 
     return 0
 

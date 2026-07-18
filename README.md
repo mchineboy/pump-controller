@@ -21,7 +21,8 @@ The 3D-printable peristaltic pump mechanical design is by
 This repository provides the controller firmware, electronics integration, and
 web UI around that design. See [docs/HARDWARE.md](docs/HARDWARE.md),
 [docs/BOM.md](docs/BOM.md), [docs/WIRING.md](docs/WIRING.md), and
-[cad/enclosure/](cad/enclosure/) for the dry-side enclosure STEP files.
+[cad/enclosure/](cad/enclosure/) for dry-side enclosure STEP files
+([v1 monolithic](cad/enclosure/v1/), [v2 sectional](cad/enclosure/v2/)).
 
 ## Features
 
