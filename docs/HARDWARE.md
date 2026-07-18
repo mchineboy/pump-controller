@@ -54,3 +54,20 @@ Recommended wiring:
 - On assert: step pulses stop, valve closes, driver disables, system enters
   fault. Clear the switch, then acknowledge the fault in the UI before starting
   another operation.
+
+## TMC2209 UART (optional)
+
+Default pins: **RX GPIO 16**, **TX GPIO 17** (`PUMP_TMC_RX_PIN` / `PUMP_TMC_TX_PIN`).
+Baud: 115200. Driver address: `0b00` (MS1/MS2 low on BIGTREETECH V1.3).
+
+Wiring notes:
+
+- Connect ESP32 TX → TMC PDN_UART (through the board’s UART path; do not leave
+  PDN_UART floating if UART mode is intended).
+- Connect ESP32 RX ← TMC UART TX / PDN_UART sense path per the StepStick silkscreen.
+- Keep STEP/DIR/ENABLE wired regardless; UART only configures current,
+  microsteps, and StealthChop. Motion remains STEP/DIR.
+- Sense resistor assumed **0.11 Ω** (standard on BTT TMC2209 V1.3).
+- Enable “TMC2209 UART” in Diagnostics and set run/hold current and microsteps.
+  On miswire or no response, boot continues in STEP/DIR-only mode and logs
+  `tmc_uart_warning` / `tmc_uart_no_response`.

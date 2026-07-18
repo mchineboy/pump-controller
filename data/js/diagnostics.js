@@ -12,8 +12,14 @@ const logging = document.getElementById("logging");
 const webAuth = document.getElementById("web-auth");
 const valveHw = document.getElementById("valve-hw");
 const estopEn = document.getElementById("estop-en");
+const driverUart = document.getElementById("driver-uart");
+const tmcRunMa = document.getElementById("tmc-run-ma");
+const tmcHoldMa = document.getElementById("tmc-hold-ma");
+const tmcMicrosteps = document.getElementById("tmc-microsteps");
+const tmcStealth = document.getElementById("tmc-stealth");
 const settingsStatus = document.getElementById("settings-status");
 const estopLive = document.getElementById("estop-live");
+const tmcLive = document.getElementById("tmc-live");
 const eventList = document.getElementById("event-list");
 
 function renderEstop(status) {
@@ -24,6 +30,22 @@ function renderEstop(status) {
     (status.fault ? ` · fault: ${status.fault}` : "");
 }
 
+function renderTmc(status) {
+  if (!status.driver_uart_enabled) {
+    tmcLive.textContent = "TMC UART: disabled (STEP/DIR only)";
+    return;
+  }
+  const ready = status.driver_uart_ready ? "ready" : "not ready";
+  tmcLive.textContent =
+    `TMC UART: enabled · ${ready}` +
+    (status.driver_uart_error ? ` · ${status.driver_uart_error}` : "");
+}
+
+function renderStatus(status) {
+  renderEstop(status);
+  renderTmc(status);
+}
+
 async function loadSettings() {
   const settings = await getSettings();
   deviceName.value = settings.device_name;
@@ -31,6 +53,11 @@ async function loadSettings() {
   webAuth.checked = settings.web_auth_enabled;
   valveHw.checked = settings.valve_hardware_present;
   estopEn.checked = settings.emergency_stop_enabled;
+  driverUart.checked = settings.driver_uart_enabled;
+  tmcRunMa.value = settings.driver_run_current_ma;
+  tmcHoldMa.value = settings.driver_hold_current_ma;
+  tmcMicrosteps.value = String(settings.driver_microsteps);
+  tmcStealth.checked = settings.driver_stealthchop;
 }
 
 async function loadEvents() {
@@ -51,15 +78,22 @@ async function loadEvents() {
 document.getElementById("settings-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    await updateSettings({
+    const saved = await updateSettings({
       device_name: deviceName.value,
       logging_enabled: logging.checked,
       web_auth_enabled: webAuth.checked,
       valve_hardware_present: valveHw.checked,
-      emergency_stop_enabled: estopEn.checked
+      emergency_stop_enabled: estopEn.checked,
+      driver_uart_enabled: driverUart.checked,
+      driver_run_current_ma: Number(tmcRunMa.value),
+      driver_hold_current_ma: Number(tmcHoldMa.value),
+      driver_microsteps: Number(tmcMicrosteps.value),
+      driver_stealthchop: tmcStealth.checked
     });
-    settingsStatus.textContent = "Settings saved.";
-    renderEstop(await getStatus());
+    settingsStatus.textContent = saved.driver_uart_enabled && !saved.driver_uart_ready
+      ? `Settings saved. UART warning: ${saved.driver_uart_error || "not ready"}`
+      : "Settings saved.";
+    renderStatus(await getStatus());
   } catch (error) {
     alert(error.message);
   }
@@ -82,11 +116,11 @@ document.getElementById("clear-log-btn").addEventListener("click", async () => {
 });
 
 connectStatusStream({
-  onStatus: renderEstop,
+  onStatus: renderStatus,
   onOperation: () => {
-    getStatus().then(renderEstop).catch(() => {});
+    getStatus().then(renderStatus).catch(() => {});
   }
 });
 
-Promise.all([loadSettings(), loadEvents(), getStatus().then(renderEstop)])
+Promise.all([loadSettings(), loadEvents(), getStatus().then(renderStatus)])
   .catch((error) => alert(error.message));

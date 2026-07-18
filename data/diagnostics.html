@@ -42,12 +42,43 @@
           <input id="estop-en" type="checkbox">
           Emergency stop input enabled (GPIO 32, active low to GND)
         </label>
+        <fieldset>
+          <legend>TMC2209 UART (optional)</legend>
+          <label class="checkbox">
+            <input id="driver-uart" type="checkbox">
+            Enable UART config (RX GPIO 16, TX GPIO 17)
+          </label>
+          <label>
+            Run current (mA)
+            <input id="tmc-run-ma" type="number" min="100" max="2000" step="50">
+          </label>
+          <label>
+            Hold current (mA)
+            <input id="tmc-hold-ma" type="number" min="0" max="2000" step="50">
+          </label>
+          <label>
+            Microsteps
+            <select id="tmc-microsteps">
+              <option value="8">8</option>
+              <option value="16">16</option>
+              <option value="32">32</option>
+              <option value="64">64</option>
+              <option value="128">128</option>
+              <option value="256">256</option>
+            </select>
+          </label>
+          <label class="checkbox">
+            <input id="tmc-stealth" type="checkbox">
+            StealthChop (quiet)
+          </label>
+        </fieldset>
         <div class="actions">
           <button type="submit">Save settings</button>
         </div>
       </form>
       <p id="settings-status" class="meta"></p>
       <p id="estop-live" class="status-line">ESTOP: —</p>
+      <p id="tmc-live" class="status-line">TMC UART: —</p>
     </section>
 
     <section class="panel">
