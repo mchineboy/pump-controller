@@ -23,4 +23,6 @@ Puschmann’s NEMA 17 peristaltic pump and this ESP32 controller.
 | Thermal | TMC2209 heatsink | Small adhesive heatsink appropriate for the StepStick module | 1 | Recommended | Often included with the BIGTREETECH driver package |
 | Safety | Fuse | Inline fuse and holder sized for the 12 V input, approximately 3 A | 1 | Recommended | Place near the 12 V power-entry point |
 | Safety | Emergency stop switch | Normally-open switch or latching ESTOP that connects GPIO 32 to GND when asserted | 1 | Optional | Enable in Diagnostics; see [HARDWARE.md](HARDWARE.md) |
+| Sensing | Load cell | Strain-gauge load cell, typically 1–5 kg capacity, matched mount for vessel | 1 | Optional | Phase 4 verification; pair with HX711 |
+| Sensing | HX711 amplifier | HX711 load-cell ADC module, ESP32-compatible logic levels | 1 | Optional | DT GPIO 19, SCK GPIO 18 by default |
 | Enclosure | Controller enclosure | Ventilated enclosure for ESP32, driver, buck converter, terminals, and optional valve driver | 1 | Recommended | Keep liquid plumbing physically separated from electronics |

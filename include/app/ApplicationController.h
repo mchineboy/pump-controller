@@ -5,6 +5,7 @@
 #include "motor/TmcDriverController.h"
 #include "pump/PumpService.h"
 #include "safety/SafetyController.h"
+#include "sensors/LoadCellSensor.h"
 #include "sensors/ReservoirSensor.h"
 #include "storage/ProfileRepository.h"
 #include "storage/SettingsRepository.h"
@@ -21,11 +22,13 @@ private:
     void beginNetwork();
     void applyTmcSettings(const GlobalSettings& settings);
     void applyReservoirSettings(const GlobalSettings& settings);
+    void applyLoadCellSettings(const GlobalSettings& settings);
 
     StepperController stepper_;
     TmcDriverController tmc_;
     ValveController valve_;
     ReservoirSensor reservoir_;
+    LoadCellSensor loadCell_;
     ProfileRepository profiles_;
     SettingsRepository settings_;
     SafetyController safety_;

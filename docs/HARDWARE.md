@@ -95,3 +95,27 @@ Recommended wiring:
 - Policy options: **warn** (status only), **block** (refuse new dispense/calibrate),
   **fault** (also stop an in-progress operation with `reservoir_empty`).
 - With the sensor disabled, dispense behavior is unchanged.
+
+## Load cell / HX711 (optional)
+
+Default pins: **DT GPIO 19**, **SCK GPIO 18** (`PUMP_LOADCELL_DT_PIN` /
+`PUMP_LOADCELL_SCK_PIN`). Channel A, gain 128.
+
+Recommended parts:
+
+- HX711 amplifier module (5 V or 3.3 V logic-compatible with ESP32 levels)
+- Strain-gauge load cell sized for the expected container + fluid mass (e.g.
+  1–5 kg for typical beaker verification)
+
+Wiring:
+
+- HX711 DT → GPIO 19, SCK → GPIO 18, VCC/GND per module rating
+- Excitation and sense to the load cell per HX711 silkscreen (E+/E−, A+/A−)
+
+Usage:
+
+- Enable in Diagnostics, then **Tare** with the empty vessel on the cell
+- Place a known mass and **Calibrate** (stores scale factor + offset in NVS)
+- Status shows grams and optional mL via fluid density (g/mL)
+- Miswire/timeout does not brick boot; logs `loadcell_warning`
+- Does not alter dispense control yet (closed-loop is a later Phase 4 issue)

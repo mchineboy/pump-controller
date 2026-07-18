@@ -27,6 +27,12 @@
 #ifndef PUMP_RESERVOIR_PIN
 #define PUMP_RESERVOIR_PIN 34
 #endif
+#ifndef PUMP_LOADCELL_DT_PIN
+#define PUMP_LOADCELL_DT_PIN 19
+#endif
+#ifndef PUMP_LOADCELL_SCK_PIN
+#define PUMP_LOADCELL_SCK_PIN 18
+#endif
 
 namespace Config {
 constexpr const char* kDeviceName = "Fluid Dispensing Controller";
@@ -50,4 +56,6 @@ constexpr uint32_t kMaxValveTimingMs = 5000;
 constexpr uint16_t kDefaultTmcRunCurrentMa = 800;
 constexpr uint16_t kDefaultTmcHoldCurrentMa = 400;
 constexpr uint16_t kDefaultTmcMicrosteps = 16;
+constexpr float kDefaultLoadCellScale = 1.0f;
+constexpr float kDefaultFluidDensityGPerMl = 1.0f;
 }  // namespace Config

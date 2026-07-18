@@ -23,6 +23,10 @@ bool SettingsRepository::begin() {
     settings_.reservoirSensorEnabled = false;
     settings_.reservoirEmptyActiveLow = true;
     settings_.reservoirEmptyPolicy = "block";
+    settings_.loadCellEnabled = false;
+    settings_.loadCellScale = Config::kDefaultLoadCellScale;
+    settings_.loadCellOffset = 0;
+    settings_.fluidDensityGPerMl = Config::kDefaultFluidDensityGPerMl;
 
     if (!prefs.begin(kNamespace, false)) {
         return true;
@@ -53,6 +57,11 @@ bool SettingsRepository::begin() {
         prefs.getBool("res_empty_lo", settings_.reservoirEmptyActiveLow);
     settings_.reservoirEmptyPolicy =
         prefs.getString("res_policy", settings_.reservoirEmptyPolicy);
+    settings_.loadCellEnabled = prefs.getBool("lc_en", settings_.loadCellEnabled);
+    settings_.loadCellScale = prefs.getFloat("lc_scale", settings_.loadCellScale);
+    settings_.loadCellOffset = prefs.getInt("lc_offset", settings_.loadCellOffset);
+    settings_.fluidDensityGPerMl =
+        prefs.getFloat("fluid_density", settings_.fluidDensityGPerMl);
     prefs.end();
 
     // Replace earlier project brand names with the generic product name.
@@ -85,6 +94,10 @@ bool SettingsRepository::save(const GlobalSettings& settings) {
     prefs.putBool("res_en", settings_.reservoirSensorEnabled);
     prefs.putBool("res_empty_lo", settings_.reservoirEmptyActiveLow);
     prefs.putString("res_policy", settings_.reservoirEmptyPolicy);
+    prefs.putBool("lc_en", settings_.loadCellEnabled);
+    prefs.putFloat("lc_scale", settings_.loadCellScale);
+    prefs.putInt("lc_offset", settings_.loadCellOffset);
+    prefs.putFloat("fluid_density", settings_.fluidDensityGPerMl);
     prefs.end();
     return true;
 }
