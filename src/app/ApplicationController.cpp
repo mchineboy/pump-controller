@@ -204,6 +204,16 @@ void ApplicationController::applyFlowSettings(const GlobalSettings& settings) {
     }
 }
 
+void ApplicationController::applyFeedbackSettings(const GlobalSettings& settings) {
+    pump_.setFeedbackConfig(
+        parseDispenseFeedbackMode(settings.dispenseFeedbackMode),
+        parseDispenseFeedbackSource(settings.dispenseFeedbackSource),
+        settings.dispenseFeedbackTolerancePercent,
+        parseDispenseFeedbackOnMiss(settings.dispenseFeedbackOnMiss),
+        settings.fluidDensityGPerMl
+    );
+}
+
 void ApplicationController::begin() {
     Serial.begin(115200);
     delay(200);
@@ -228,11 +238,22 @@ void ApplicationController::begin() {
     valve_.begin(PUMP_VALVE_PIN, settings.valveHardwarePresent, true);
     safety_.begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
 
-    pump_.begin(stepper_, valve_, profiles_, safety_, logger_, tmc_, reservoir_);
+    pump_.begin(
+        stepper_,
+        valve_,
+        profiles_,
+        safety_,
+        logger_,
+        tmc_,
+        reservoir_,
+        loadCell_,
+        flow_
+    );
     applyReservoirSettings(settings);
     applyLoadCellSettings(settings);
     applyTemperatureSettings(settings);
     applyFlowSettings(settings);
+    applyFeedbackSettings(settings);
     beginNetwork();
     web_.begin(
         pump_,

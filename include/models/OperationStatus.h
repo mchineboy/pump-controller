@@ -21,4 +21,10 @@ struct OperationStatus {
     uint32_t estimatedRemainingMs = 0;
     String completionReason;
     FaultCode fault = FaultCode::None;
+    float feedbackMl = 0.0f;
+    bool feedbackAvailable = false;
+    String feedbackSource;
+    String feedbackMode;
+    bool verificationOk = true;
+    float verificationErrorPercent = 0.0f;
 };

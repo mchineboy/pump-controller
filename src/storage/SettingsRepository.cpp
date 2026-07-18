@@ -32,6 +32,10 @@ bool SettingsRepository::begin() {
     settings_.temperatureWarnHighC = Config::kDefaultTempWarnHighC;
     settings_.flowSensorEnabled = false;
     settings_.flowPulsesPerLiter = Config::kDefaultFlowPulsesPerLiter;
+    settings_.dispenseFeedbackMode = "open_loop";
+    settings_.dispenseFeedbackSource = "auto";
+    settings_.dispenseFeedbackTolerancePercent = 5.0f;
+    settings_.dispenseFeedbackOnMiss = "warn";
 
     if (!prefs.begin(kNamespace, false)) {
         return true;
@@ -76,6 +80,14 @@ bool SettingsRepository::begin() {
     settings_.flowSensorEnabled = prefs.getBool("flow_en", settings_.flowSensorEnabled);
     settings_.flowPulsesPerLiter =
         prefs.getFloat("flow_ppl", settings_.flowPulsesPerLiter);
+    settings_.dispenseFeedbackMode =
+        prefs.getString("fb_mode", settings_.dispenseFeedbackMode);
+    settings_.dispenseFeedbackSource =
+        prefs.getString("fb_source", settings_.dispenseFeedbackSource);
+    settings_.dispenseFeedbackTolerancePercent =
+        prefs.getFloat("fb_tol_pct", settings_.dispenseFeedbackTolerancePercent);
+    settings_.dispenseFeedbackOnMiss =
+        prefs.getString("fb_on_miss", settings_.dispenseFeedbackOnMiss);
     prefs.end();
 
     // Replace earlier project brand names with the generic product name.
@@ -117,6 +129,10 @@ bool SettingsRepository::save(const GlobalSettings& settings) {
     prefs.putFloat("temp_hi", settings_.temperatureWarnHighC);
     prefs.putBool("flow_en", settings_.flowSensorEnabled);
     prefs.putFloat("flow_ppl", settings_.flowPulsesPerLiter);
+    prefs.putString("fb_mode", settings_.dispenseFeedbackMode);
+    prefs.putString("fb_source", settings_.dispenseFeedbackSource);
+    prefs.putFloat("fb_tol_pct", settings_.dispenseFeedbackTolerancePercent);
+    prefs.putString("fb_on_miss", settings_.dispenseFeedbackOnMiss);
     prefs.end();
     return true;
 }
