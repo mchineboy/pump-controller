@@ -82,6 +82,10 @@ export function acknowledgeFault() {
   return requestJson("/api/fault/ack", { method: "POST" });
 }
 
+export function injectDriverFault() {
+  return requestJson("/api/fault/inject-driver", { method: "POST" });
+}
+
 export function startCalibration(profileId, durationMs) {
   return requestJson("/api/calibration/start", {
     method: "POST",

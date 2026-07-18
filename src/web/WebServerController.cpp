@@ -248,6 +248,12 @@ void WebServerController::registerApiRoutes() {
         } else {
             doc["driver_uart_error"] = nullptr;
         }
+        doc["driver_overtemperature"] =
+            tmc_ != nullptr && tmc_->isReady() && tmc_->overtemperature();
+        doc["driver_short_circuit"] =
+            tmc_ != nullptr && tmc_->isReady() && tmc_->shortCircuit();
+        doc["driver_open_load"] =
+            tmc_ != nullptr && tmc_->isReady() && tmc_->openLoad();
         doc["ip"] = WiFi.status() == WL_CONNECTED
             ? WiFi.localIP().toString()
             : WiFi.softAPIP().toString();
@@ -686,6 +692,20 @@ void WebServerController::registerApiRoutes() {
         }
         JsonDocument doc;
         doc["acknowledged"] = true;
+        sendJson(request, 200, doc);
+    });
+
+    server_.on("/api/fault/inject-driver", HTTP_POST, [this](AsyncWebServerRequest* request) {
+        if (!requireAuth(request)) {
+            return;
+        }
+        if (!pump_->injectMotorDriverFault()) {
+            sendError(request, 409, "operation_busy");
+            return;
+        }
+        JsonDocument doc;
+        doc["injected"] = true;
+        doc["fault"] = "motor_driver_fault";
         sendJson(request, 200, doc);
     });
 
