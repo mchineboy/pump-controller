@@ -53,6 +53,10 @@ private:
         JsonObject doc
     ) const;
     void fillFlowSettingsJson(const GlobalSettings& settings, JsonObject doc) const;
+    void fillFeedbackSettingsJson(
+        const GlobalSettings& settings,
+        JsonObject doc
+    ) const;
     bool applyTmcFromBody(JsonObjectConst body, GlobalSettings& settings) const;
     bool applyReservoirFromBody(
         JsonObjectConst body,
@@ -67,7 +71,12 @@ private:
         GlobalSettings& settings
     ) const;
     bool applyFlowFromBody(JsonObjectConst body, GlobalSettings& settings) const;
+    bool applyFeedbackFromBody(
+        JsonObjectConst body,
+        GlobalSettings& settings
+    ) const;
     void persistLoadCellCalibration();
+    void applyFeedbackToPump(const GlobalSettings& settings);
 
     AsyncWebServer server_{80};
     AsyncEventSource events_{"/api/events"};

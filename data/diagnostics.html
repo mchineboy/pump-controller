@@ -139,6 +139,37 @@
             <button type="button" id="flow-reset-btn">Reset cumulative volume</button>
           </div>
         </fieldset>
+        <fieldset>
+          <legend>Dispense feedback (closed-loop)</legend>
+          <label>
+            Mode
+            <select id="fb-mode">
+              <option value="open_loop">Open-loop (step count only)</option>
+              <option value="verify_after">Verify after dispense</option>
+              <option value="stop_on_feedback">Stop on feedback target</option>
+            </select>
+          </label>
+          <label>
+            Source
+            <select id="fb-source">
+              <option value="auto">Auto (load cell, else flow)</option>
+              <option value="load_cell">Load cell</option>
+              <option value="flow">Flow sensor</option>
+            </select>
+          </label>
+          <label>
+            Tolerance (%)
+            <input id="fb-tol" type="number" min="0" max="50" step="0.1" value="5">
+          </label>
+          <label>
+            On miss
+            <select id="fb-on-miss">
+              <option value="warn">Warn only</option>
+              <option value="fault">Fault</option>
+            </select>
+          </label>
+          <p class="meta">Requires load cell and/or flow sensor enabled. Uses fluid density for mass→mL.</p>
+        </fieldset>
         <div class="actions">
           <button type="submit">Save settings</button>
         </div>

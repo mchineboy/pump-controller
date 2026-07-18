@@ -12,7 +12,9 @@ void PumpService::begin(
     SafetyController& safety,
     EventLogger& logger,
     TmcDriverController& tmc,
-    ReservoirSensor& reservoir
+    ReservoirSensor& reservoir,
+    LoadCellSensor& loadCell,
+    FlowSensor& flow
 ) {
     stepper_ = &stepper;
     valve_ = &valve;
@@ -21,6 +23,8 @@ void PumpService::begin(
     logger_ = &logger;
     tmc_ = &tmc;
     reservoir_ = &reservoir;
+    loadCell_ = &loadCell;
+    flow_ = &flow;
     applySafeOutputs();
     sequencePhase_ = SequencePhase::Idle;
     pendingMotion_ = PendingMotion::None;
@@ -29,6 +33,25 @@ void PumpService::begin(
 
 void PumpService::setReservoirEmptyPolicy(ReservoirEmptyPolicy policy) {
     reservoirPolicy_ = policy;
+}
+
+void PumpService::setFeedbackConfig(
+    DispenseFeedbackMode mode,
+    DispenseFeedbackSource source,
+    float tolerancePercent,
+    DispenseFeedbackOnMiss onMiss,
+    float densityGPerMl
+) {
+    feedbackMode_ = mode;
+    feedbackSource_ = source;
+    feedbackTolerancePercent_ =
+        std::isfinite(tolerancePercent) && tolerancePercent >= 0.0f
+            ? tolerancePercent
+            : 5.0f;
+    feedbackOnMiss_ = onMiss;
+    densityGPerMl_ =
+        std::isfinite(densityGPerMl) && densityGPerMl > 0.0f ? densityGPerMl
+                                                             : 1.0f;
 }
 
 void PumpService::logEvent(const char* event) {
@@ -208,8 +231,22 @@ void PumpService::completeValvePostClose() {
         logEvent("calibration_completed");
     } else {
         stepper_->setEnabled(false);
+        if (feedbackMode_ == DispenseFeedbackMode::VerifyAfter ||
+            (feedbackMode_ == DispenseFeedbackMode::StopOnFeedback &&
+             feedbackActive_)) {
+            finalizeDispenseVerification();
+            if (!verificationOk_ &&
+                feedbackOnMiss_ == DispenseFeedbackOnMiss::Fault) {
+                pendingMotion_ = PendingMotion::None;
+                fail(FaultCode::VolumeVerificationFailed);
+                return;
+            }
+        }
         state_ = SystemState::Completed;
-        completionReason_ = "target_reached";
+        if (completionReason_.isEmpty()) {
+            completionReason_ = stoppedByFeedback_ ? "feedback_target_reached"
+                                                   : "target_reached";
+        }
         if (logger_ != nullptr) {
             JsonDocument fields;
             fields["operation_id"] = operationId_;
@@ -217,6 +254,10 @@ void PumpService::completeValvePostClose() {
             fields["requested_ml"] = requestedMl_;
             fields["commanded_steps"] = targetSteps_;
             fields["elapsed_ms"] = millis() - operationStartMs_;
+            fields["feedback_ml"] = feedbackMl_;
+            fields["feedback_source"] = feedbackSourceName_;
+            fields["verification_ok"] = verificationOk_;
+            fields["verification_error_percent"] = verificationErrorPercent_;
             logger_->log("dispense_completed", fields);
         }
     }
@@ -267,6 +308,20 @@ bool PumpService::startDispense(const DispenseRequest& request) {
         return fail(FaultCode::InvalidVolume);
     }
 
+    feedbackActive_ = false;
+    feedbackMl_ = 0.0f;
+    feedbackSourceName_ = "";
+    verificationOk_ = true;
+    verificationErrorPercent_ = 0.0f;
+    stoppedByFeedback_ = false;
+    loadCellBaselineGrams_ = 0.0f;
+
+    if (feedbackMode_ != DispenseFeedbackMode::OpenLoop) {
+        if (!prepareFeedbackForDispense()) {
+            return fail(FaultCode::FeedbackSensorLost);
+        }
+    }
+
     operationId_ = nextOperationId("disp-");
     activeProfileId_ = request.profileId;
     requestedMl_ = request.requestedMl;
@@ -306,6 +361,7 @@ bool PumpService::startDispense(const DispenseRequest& request) {
         fields["profile_id"] = activeProfileId_;
         fields["requested_ml"] = requestedMl_;
         fields["target_steps"] = targetSteps_;
+        fields["feedback_mode"] = dispenseFeedbackModeToString(feedbackMode_);
         logger_->log("dispense_started", fields);
     }
 
@@ -491,6 +547,129 @@ void PumpService::pollReservoir() {
     }
 }
 
+bool PumpService::prepareFeedbackForDispense() {
+    feedbackActive_ = false;
+    feedbackSourceName_ = "";
+
+    const bool wantLoadCell =
+        feedbackSource_ == DispenseFeedbackSource::LoadCell ||
+        feedbackSource_ == DispenseFeedbackSource::Auto;
+    const bool wantFlow =
+        feedbackSource_ == DispenseFeedbackSource::Flow ||
+        feedbackSource_ == DispenseFeedbackSource::Auto;
+
+    if (wantLoadCell && loadCell_ != nullptr && loadCell_->isEnabled() &&
+        loadCell_->isReady()) {
+        loadCell_->update();
+        if (!loadCell_->isReady()) {
+            if (feedbackSource_ == DispenseFeedbackSource::LoadCell) {
+                return false;
+            }
+        } else {
+            loadCellBaselineGrams_ = loadCell_->grams();
+            feedbackSourceName_ = "load_cell";
+            feedbackActive_ = true;
+            return true;
+        }
+    }
+
+    if (wantFlow && flow_ != nullptr && flow_->isEnabled() && flow_->isReady()) {
+        flow_->resetCumulative();
+        feedbackSourceName_ = "flow";
+        feedbackActive_ = true;
+        return true;
+    }
+
+    return false;
+}
+
+bool PumpService::readFeedbackMl(float& outMl, const char*& sourceName) const {
+    if (!feedbackActive_) {
+        return false;
+    }
+    if (feedbackSourceName_ == "load_cell") {
+        if (loadCell_ == nullptr || !loadCell_->isEnabled() ||
+            !loadCell_->isReady()) {
+            return false;
+        }
+        const float grams = loadCell_->grams() - loadCellBaselineGrams_;
+        outMl = grams / densityGPerMl_;
+        sourceName = "load_cell";
+        return std::isfinite(outMl);
+    }
+    if (feedbackSourceName_ == "flow") {
+        if (flow_ == nullptr || !flow_->isEnabled() || !flow_->isReady()) {
+            return false;
+        }
+        outMl = flow_->cumulativeMl();
+        sourceName = "flow";
+        return std::isfinite(outMl);
+    }
+    return false;
+}
+
+void PumpService::pollFeedbackDuringDispense() {
+    if (loadCell_ != nullptr && feedbackSourceName_ == "load_cell") {
+        loadCell_->update();
+    }
+    const char* source = nullptr;
+    float ml = 0.0f;
+    if (!readFeedbackMl(ml, source)) {
+        fail(FaultCode::FeedbackSensorLost);
+        return;
+    }
+    feedbackMl_ = ml;
+    // Stop slightly early to reduce overshoot from deceleration.
+    const float stopThreshold = requestedMl_ * 0.98f;
+    if (ml >= stopThreshold || ml >= requestedMl_) {
+        stoppedByFeedback_ = true;
+        completionReason_ = "feedback_target_reached";
+        stepper_->stopImmediate();
+    }
+}
+
+void PumpService::finalizeDispenseVerification() {
+    const char* source = nullptr;
+    float ml = 0.0f;
+    if (!readFeedbackMl(ml, source)) {
+        // Prefer last known sample if sensor dropped after stop.
+        if (!(feedbackMl_ > 0.0f && std::isfinite(feedbackMl_))) {
+            verificationOk_ = false;
+            verificationErrorPercent_ = 100.0f;
+            if (logger_ != nullptr) {
+                JsonDocument fields;
+                fields["fault"] = "feedback_sensor_lost";
+                logger_->log("dispense_verification_failed", fields);
+            }
+            return;
+        }
+        ml = feedbackMl_;
+    } else {
+        feedbackMl_ = ml;
+    }
+
+    const float errorPct =
+        requestedMl_ > 0.0f
+            ? (fabsf(ml - requestedMl_) / requestedMl_) * 100.0f
+            : 100.0f;
+    verificationErrorPercent_ = errorPct;
+    verificationOk_ = errorPct <= feedbackTolerancePercent_;
+    if (!verificationOk_ && logger_ != nullptr) {
+        JsonDocument fields;
+        fields["requested_ml"] = requestedMl_;
+        fields["feedback_ml"] = ml;
+        fields["error_percent"] = errorPct;
+        fields["tolerance_percent"] = feedbackTolerancePercent_;
+        fields["on_miss"] = dispenseFeedbackOnMissToString(feedbackOnMiss_);
+        logger_->log(
+            feedbackOnMiss_ == DispenseFeedbackOnMiss::Fault
+                ? "dispense_verification_failed"
+                : "dispense_verification_warning",
+            fields
+        );
+    }
+}
+
 bool PumpService::acknowledgeFault() {
     if (state_ != SystemState::Fault) {
         return true;
@@ -598,6 +777,14 @@ void PumpService::update() {
     }
 
     if (sequencePhase_ == SequencePhase::MotorRunning) {
+        if (state_ == SystemState::Dispensing &&
+            feedbackMode_ == DispenseFeedbackMode::StopOnFeedback &&
+            feedbackActive_) {
+            pollFeedbackDuringDispense();
+            if (state_ == SystemState::Fault) {
+                return;
+            }
+        }
         stepper_->update();
         if (!stepper_->isRunning()) {
             if (state_ == SystemState::Calibrating) {
@@ -633,6 +820,12 @@ OperationStatus PumpService::getProgress() const {
     status.elapsedMs = operationStartMs_ == 0 ? 0 : (millis() - operationStartMs_);
     status.completionReason = completionReason_;
     status.fault = lastFault_;
+    status.feedbackMl = feedbackMl_;
+    status.feedbackAvailable = feedbackActive_ || feedbackMl_ > 0.0f;
+    status.feedbackSource = feedbackSourceName_;
+    status.feedbackMode = dispenseFeedbackModeToString(feedbackMode_);
+    status.verificationOk = verificationOk_;
+    status.verificationErrorPercent = verificationErrorPercent_;
 
     if (state_ == SystemState::Calibrating ||
         state_ == SystemState::AwaitingCalibrationMeasurement) {

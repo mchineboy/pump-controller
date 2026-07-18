@@ -28,6 +28,13 @@ struct GlobalSettings {
     float temperatureWarnHighC = 40.0f;
     bool flowSensorEnabled = false;
     float flowPulsesPerLiter = 450.0f;
+    // open_loop | verify_after | stop_on_feedback
+    String dispenseFeedbackMode = "open_loop";
+    // auto | load_cell | flow
+    String dispenseFeedbackSource = "auto";
+    float dispenseFeedbackTolerancePercent = 5.0f;
+    // warn | fault
+    String dispenseFeedbackOnMiss = "warn";
 };
 
 class SettingsRepository {

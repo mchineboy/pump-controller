@@ -9,6 +9,8 @@
 #include "motor/StepperController.h"
 #include "motor/TmcDriverController.h"
 #include "safety/SafetyController.h"
+#include "sensors/FlowSensor.h"
+#include "sensors/LoadCellSensor.h"
 #include "sensors/ReservoirSensor.h"
 #include "storage/ProfileRepository.h"
 #include "valve/ValveController.h"
@@ -37,6 +39,23 @@ enum class ReservoirEmptyPolicy : uint8_t {
     Fault
 };
 
+enum class DispenseFeedbackMode : uint8_t {
+    OpenLoop,
+    VerifyAfter,
+    StopOnFeedback
+};
+
+enum class DispenseFeedbackSource : uint8_t {
+    Auto,
+    LoadCell,
+    Flow
+};
+
+enum class DispenseFeedbackOnMiss : uint8_t {
+    Warn,
+    Fault
+};
+
 inline ReservoirEmptyPolicy parseReservoirEmptyPolicy(const String& value) {
     if (value == "warn") {
         return ReservoirEmptyPolicy::Warn;
@@ -57,6 +76,62 @@ inline const char* reservoirEmptyPolicyToString(ReservoirEmptyPolicy policy) {
     }
 }
 
+inline DispenseFeedbackMode parseDispenseFeedbackMode(const String& value) {
+    if (value == "verify_after") {
+        return DispenseFeedbackMode::VerifyAfter;
+    }
+    if (value == "stop_on_feedback") {
+        return DispenseFeedbackMode::StopOnFeedback;
+    }
+    return DispenseFeedbackMode::OpenLoop;
+}
+
+inline const char* dispenseFeedbackModeToString(DispenseFeedbackMode mode) {
+    switch (mode) {
+        case DispenseFeedbackMode::VerifyAfter: return "verify_after";
+        case DispenseFeedbackMode::StopOnFeedback: return "stop_on_feedback";
+        case DispenseFeedbackMode::OpenLoop:
+        default:
+            return "open_loop";
+    }
+}
+
+inline DispenseFeedbackSource parseDispenseFeedbackSource(const String& value) {
+    if (value == "load_cell") {
+        return DispenseFeedbackSource::LoadCell;
+    }
+    if (value == "flow") {
+        return DispenseFeedbackSource::Flow;
+    }
+    return DispenseFeedbackSource::Auto;
+}
+
+inline const char* dispenseFeedbackSourceToString(DispenseFeedbackSource source) {
+    switch (source) {
+        case DispenseFeedbackSource::LoadCell: return "load_cell";
+        case DispenseFeedbackSource::Flow: return "flow";
+        case DispenseFeedbackSource::Auto:
+        default:
+            return "auto";
+    }
+}
+
+inline DispenseFeedbackOnMiss parseDispenseFeedbackOnMiss(const String& value) {
+    if (value == "fault") {
+        return DispenseFeedbackOnMiss::Fault;
+    }
+    return DispenseFeedbackOnMiss::Warn;
+}
+
+inline const char* dispenseFeedbackOnMissToString(DispenseFeedbackOnMiss value) {
+    switch (value) {
+        case DispenseFeedbackOnMiss::Fault: return "fault";
+        case DispenseFeedbackOnMiss::Warn:
+        default:
+            return "warn";
+    }
+}
+
 class PumpService {
 public:
     void begin(
@@ -66,11 +141,20 @@ public:
         SafetyController& safety,
         EventLogger& logger,
         TmcDriverController& tmc,
-        ReservoirSensor& reservoir
+        ReservoirSensor& reservoir,
+        LoadCellSensor& loadCell,
+        FlowSensor& flow
     );
 
     void update();
     void setReservoirEmptyPolicy(ReservoirEmptyPolicy policy);
+    void setFeedbackConfig(
+        DispenseFeedbackMode mode,
+        DispenseFeedbackSource source,
+        float tolerancePercent,
+        DispenseFeedbackOnMiss onMiss,
+        float densityGPerMl
+    );
 
     bool startDispense(const DispenseRequest& request);
     bool startCalibration(const String& profileId, uint32_t durationMs);
@@ -96,6 +180,8 @@ public:
         return reservoirPolicy_;
     }
     bool reservoirEmptyWarning() const { return reservoirEmptyWarning_; }
+    DispenseFeedbackMode feedbackMode() const { return feedbackMode_; }
+    DispenseFeedbackSource feedbackSource() const { return feedbackSource_; }
 
 private:
     enum class SequencePhase : uint8_t {
@@ -130,6 +216,10 @@ private:
     void pollDriverDiagnostics();
     bool driverFaultPresent() const;
     void pollReservoir();
+    bool prepareFeedbackForDispense();
+    bool readFeedbackMl(float& outMl, const char*& sourceName) const;
+    void pollFeedbackDuringDispense();
+    void finalizeDispenseVerification();
 
     StepperController* stepper_ = nullptr;
     ValveController* valve_ = nullptr;
@@ -138,6 +228,8 @@ private:
     EventLogger* logger_ = nullptr;
     TmcDriverController* tmc_ = nullptr;
     ReservoirSensor* reservoir_ = nullptr;
+    LoadCellSensor* loadCell_ = nullptr;
+    FlowSensor* flow_ = nullptr;
 
     SystemState state_ = SystemState::Booting;
     FaultCode lastFault_ = FaultCode::None;
@@ -174,6 +266,19 @@ private:
     ReservoirEmptyPolicy reservoirPolicy_ = ReservoirEmptyPolicy::Block;
     bool reservoirWasEmpty_ = false;
     bool reservoirEmptyWarning_ = false;
+
+    DispenseFeedbackMode feedbackMode_ = DispenseFeedbackMode::OpenLoop;
+    DispenseFeedbackSource feedbackSource_ = DispenseFeedbackSource::Auto;
+    float feedbackTolerancePercent_ = 5.0f;
+    DispenseFeedbackOnMiss feedbackOnMiss_ = DispenseFeedbackOnMiss::Warn;
+    float densityGPerMl_ = 1.0f;
+    bool feedbackActive_ = false;
+    float loadCellBaselineGrams_ = 0.0f;
+    float feedbackMl_ = 0.0f;
+    String feedbackSourceName_;
+    bool verificationOk_ = true;
+    float verificationErrorPercent_ = 0.0f;
+    bool stoppedByFeedback_ = false;
 
     std::vector<CalibrationSample> samples_;
 };

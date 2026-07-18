@@ -67,8 +67,18 @@ function renderOperation(operation) {
       `Target: ${operation.requested_ml ?? "—"} mL`,
       `Delivered ≈ ${Number(operation.estimated_delivered_ml || 0).toFixed(1)} mL`,
       `Progress: ${Number(operation.progress_percent || 0).toFixed(1)}%`,
-      `Remaining: ${formatSeconds(operation.estimated_remaining_ms)}`
-    ].join(" · ");
+      `Remaining: ${formatSeconds(operation.estimated_remaining_ms)}`,
+      operation.feedback_available
+        ? `Feedback: ${Number(operation.feedback_ml || 0).toFixed(1)} mL` +
+          (operation.feedback_source ? ` (${operation.feedback_source})` : "")
+        : null,
+      operation.state === "completed" && operation.feedback_mode &&
+        operation.feedback_mode !== "open_loop"
+        ? (operation.verification_ok
+          ? `Verify OK (±${Number(operation.verification_error_percent || 0).toFixed(1)}%)`
+          : `Verify miss ${Number(operation.verification_error_percent || 0).toFixed(1)}%`)
+        : null
+    ].filter(Boolean).join(" · ");
   }
 }
 

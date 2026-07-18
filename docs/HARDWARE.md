@@ -154,3 +154,16 @@ Usage:
 - Status shows mL/min and cumulative mL; **Reset cumulative** clears the session
   total (`POST /api/flow/reset`)
 - Does not alter dispense control yet (closed-loop is #20)
+
+## Dispense feedback / closed-loop (optional)
+
+Diagnostics setting **Dispense feedback**:
+
+- `open_loop` (default): step-count only
+- `verify_after`: run open-loop, then compare load-cell or flow volume to request
+- `stop_on_feedback`: stop motor when feedback volume reaches ~98% of request
+
+Source: `auto` (load cell if ready, else flow), `load_cell`, or `flow`. Density
+(g/mL) converts load-cell mass to mL. Out-of-tolerance can **warn** or **fault**
+(`volume_verification_failed`). Sensor loss during feedback modes raises
+`feedback_sensor_lost`.

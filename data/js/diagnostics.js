@@ -41,6 +41,10 @@ const tempLive = document.getElementById("temp-live");
 const flowEn = document.getElementById("flow-en");
 const flowPpl = document.getElementById("flow-ppl");
 const flowLive = document.getElementById("flow-live");
+const fbMode = document.getElementById("fb-mode");
+const fbSource = document.getElementById("fb-source");
+const fbTol = document.getElementById("fb-tol");
+const fbOnMiss = document.getElementById("fb-on-miss");
 const eventList = document.getElementById("event-list");
 
 function renderEstop(status) {
@@ -161,6 +165,10 @@ async function loadSettings() {
   tempHi.value = settings.temperature_warn_high_c ?? 40;
   flowEn.checked = settings.flow_sensor_enabled;
   flowPpl.value = settings.flow_pulses_per_liter ?? 450;
+  fbMode.value = settings.dispense_feedback_mode || "open_loop";
+  fbSource.value = settings.dispense_feedback_source || "auto";
+  fbTol.value = settings.dispense_feedback_tolerance_percent ?? 5;
+  fbOnMiss.value = settings.dispense_feedback_on_miss || "warn";
 }
 
 async function loadEvents() {
@@ -201,7 +209,11 @@ document.getElementById("settings-form").addEventListener("submit", async (event
       temperature_warn_low_c: Number(tempLo.value),
       temperature_warn_high_c: Number(tempHi.value),
       flow_sensor_enabled: flowEn.checked,
-      flow_pulses_per_liter: Number(flowPpl.value)
+      flow_pulses_per_liter: Number(flowPpl.value),
+      dispense_feedback_mode: fbMode.value,
+      dispense_feedback_source: fbSource.value,
+      dispense_feedback_tolerance_percent: Number(fbTol.value),
+      dispense_feedback_on_miss: fbOnMiss.value
     });
     let message = "Settings saved.";
     if (saved.driver_uart_enabled && !saved.driver_uart_ready) {

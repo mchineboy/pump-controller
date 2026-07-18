@@ -287,6 +287,67 @@ bool WebServerController::applyFlowFromBody(
     return true;
 }
 
+void WebServerController::fillFeedbackSettingsJson(
+    const GlobalSettings& settings,
+    JsonObject doc
+) const {
+    doc["dispense_feedback_mode"] = settings.dispenseFeedbackMode;
+    doc["dispense_feedback_source"] = settings.dispenseFeedbackSource;
+    doc["dispense_feedback_tolerance_percent"] =
+        settings.dispenseFeedbackTolerancePercent;
+    doc["dispense_feedback_on_miss"] = settings.dispenseFeedbackOnMiss;
+}
+
+bool WebServerController::applyFeedbackFromBody(
+    JsonObjectConst body,
+    GlobalSettings& settings
+) const {
+    const char* mode =
+        body["dispense_feedback_mode"] | settings.dispenseFeedbackMode.c_str();
+    const char* source =
+        body["dispense_feedback_source"] | settings.dispenseFeedbackSource.c_str();
+    const char* onMiss =
+        body["dispense_feedback_on_miss"] | settings.dispenseFeedbackOnMiss.c_str();
+    const String modeStr = mode;
+    const String sourceStr = source;
+    const String onMissStr = onMiss;
+    if (modeStr != "open_loop" && modeStr != "verify_after" &&
+        modeStr != "stop_on_feedback") {
+        return false;
+    }
+    if (sourceStr != "auto" && sourceStr != "load_cell" && sourceStr != "flow") {
+        return false;
+    }
+    if (onMissStr != "warn" && onMissStr != "fault") {
+        return false;
+    }
+    settings.dispenseFeedbackMode = modeStr;
+    settings.dispenseFeedbackSource = sourceStr;
+    settings.dispenseFeedbackOnMiss = onMissStr;
+    settings.dispenseFeedbackTolerancePercent =
+        body["dispense_feedback_tolerance_percent"] |
+        settings.dispenseFeedbackTolerancePercent;
+    if (!std::isfinite(settings.dispenseFeedbackTolerancePercent) ||
+        settings.dispenseFeedbackTolerancePercent < 0.0f ||
+        settings.dispenseFeedbackTolerancePercent > 50.0f) {
+        return false;
+    }
+    return true;
+}
+
+void WebServerController::applyFeedbackToPump(const GlobalSettings& settings) {
+    if (pump_ == nullptr) {
+        return;
+    }
+    pump_->setFeedbackConfig(
+        parseDispenseFeedbackMode(settings.dispenseFeedbackMode),
+        parseDispenseFeedbackSource(settings.dispenseFeedbackSource),
+        settings.dispenseFeedbackTolerancePercent,
+        parseDispenseFeedbackOnMiss(settings.dispenseFeedbackOnMiss),
+        settings.fluidDensityGPerMl
+    );
+}
+
 void WebServerController::begin(
     PumpService& pump,
     ProfileRepository& profiles,
@@ -1002,6 +1063,12 @@ void WebServerController::registerApiRoutes() {
         doc["elapsed_ms"] = progress.elapsedMs;
         doc["estimated_remaining_ms"] = progress.estimatedRemainingMs;
         doc["completion_reason"] = progress.completionReason;
+        doc["feedback_ml"] = progress.feedbackMl;
+        doc["feedback_available"] = progress.feedbackAvailable;
+        doc["feedback_source"] = progress.feedbackSource;
+        doc["feedback_mode"] = progress.feedbackMode;
+        doc["verification_ok"] = progress.verificationOk;
+        doc["verification_error_percent"] = progress.verificationErrorPercent;
         sendJson(request, 200, doc);
     });
 
@@ -1023,6 +1090,7 @@ void WebServerController::registerApiRoutes() {
         fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
         fillTemperatureSettingsJson(settings, doc.as<JsonObject>());
         fillFlowSettingsJson(settings, doc.as<JsonObject>());
+        fillFeedbackSettingsJson(settings, doc.as<JsonObject>());
         sendJson(request, 200, doc);
     });
 
@@ -1067,6 +1135,10 @@ void WebServerController::registerApiRoutes() {
             }
             if (!applyFlowFromBody(body.as<JsonObjectConst>(), settings)) {
                 sendError(request, 400, "flow_settings_invalid");
+                return;
+            }
+            if (!applyFeedbackFromBody(body.as<JsonObjectConst>(), settings)) {
+                sendError(request, 400, "feedback_settings_invalid");
                 return;
             }
             if (!settings_->save(settings)) {
@@ -1131,6 +1203,7 @@ void WebServerController::registerApiRoutes() {
                     settings.flowPulsesPerLiter
                 );
             }
+            applyFeedbackToPump(settings);
             if (tmc_ != nullptr) {
                 TmcDriverConfig config;
                 config.enabled = settings.driverUartEnabled;
@@ -1156,6 +1229,7 @@ void WebServerController::registerApiRoutes() {
             fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
             fillTemperatureSettingsJson(settings, doc.as<JsonObject>());
             fillFlowSettingsJson(settings, doc.as<JsonObject>());
+            fillFeedbackSettingsJson(settings, doc.as<JsonObject>());
             doc["driver_uart_ready"] = tmc_ != nullptr && tmc_->isReady();
             if (tmc_ != nullptr && !tmc_->lastError().isEmpty()) {
                 doc["driver_uart_error"] = tmc_->lastError();
@@ -1207,6 +1281,7 @@ void WebServerController::registerApiRoutes() {
         fillLoadCellSettingsJson(settings, settingsObj);
         fillTemperatureSettingsJson(settings, settingsObj);
         fillFlowSettingsJson(settings, settingsObj);
+        fillFeedbackSettingsJson(settings, settingsObj);
         profiles_->exportToJson(doc);
         sendJson(request, 200, doc);
     });
@@ -1264,6 +1339,10 @@ void WebServerController::registerApiRoutes() {
                     sendError(request, 400, "flow_settings_invalid");
                     return;
                 }
+                if (!applyFeedbackFromBody(settingsObj, settings)) {
+                    sendError(request, 400, "feedback_settings_invalid");
+                    return;
+                }
                 settings_->save(settings);
                 logger_->setEnabled(settings.loggingEnabled);
                 if (reservoir_ != nullptr) {
@@ -1301,6 +1380,7 @@ void WebServerController::registerApiRoutes() {
                         settings.flowPulsesPerLiter
                     );
                 }
+                applyFeedbackToPump(settings);
                 if (tmc_ != nullptr) {
                     TmcDriverConfig config;
                     config.enabled = settings.driverUartEnabled;
@@ -1354,6 +1434,12 @@ void WebServerController::update() {
     doc["elapsed_ms"] = progress.elapsedMs;
     doc["estimated_remaining_ms"] = progress.estimatedRemainingMs;
     doc["completion_reason"] = progress.completionReason;
+    doc["feedback_ml"] = progress.feedbackMl;
+    doc["feedback_available"] = progress.feedbackAvailable;
+    doc["feedback_source"] = progress.feedbackSource;
+    doc["feedback_mode"] = progress.feedbackMode;
+    doc["verification_ok"] = progress.verificationOk;
+    doc["verification_error_percent"] = progress.verificationErrorPercent;
     String payload;
     serializeJson(doc, payload);
     events_.send(payload.c_str(), "operation", now);

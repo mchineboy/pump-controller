@@ -27,6 +27,7 @@ private:
     void applyLoadCellSettings(const GlobalSettings& settings);
     void applyTemperatureSettings(const GlobalSettings& settings);
     void applyFlowSettings(const GlobalSettings& settings);
+    void applyFeedbackSettings(const GlobalSettings& settings);
 
     StepperController stepper_;
     TmcDriverController tmc_;
