@@ -30,6 +30,8 @@ bool SettingsRepository::begin() {
     settings_.temperatureSensorEnabled = false;
     settings_.temperatureWarnLowC = Config::kDefaultTempWarnLowC;
     settings_.temperatureWarnHighC = Config::kDefaultTempWarnHighC;
+    settings_.flowSensorEnabled = false;
+    settings_.flowPulsesPerLiter = Config::kDefaultFlowPulsesPerLiter;
 
     if (!prefs.begin(kNamespace, false)) {
         return true;
@@ -71,6 +73,9 @@ bool SettingsRepository::begin() {
         prefs.getFloat("temp_lo", settings_.temperatureWarnLowC);
     settings_.temperatureWarnHighC =
         prefs.getFloat("temp_hi", settings_.temperatureWarnHighC);
+    settings_.flowSensorEnabled = prefs.getBool("flow_en", settings_.flowSensorEnabled);
+    settings_.flowPulsesPerLiter =
+        prefs.getFloat("flow_ppl", settings_.flowPulsesPerLiter);
     prefs.end();
 
     // Replace earlier project brand names with the generic product name.
@@ -110,6 +115,8 @@ bool SettingsRepository::save(const GlobalSettings& settings) {
     prefs.putBool("temp_en", settings_.temperatureSensorEnabled);
     prefs.putFloat("temp_lo", settings_.temperatureWarnLowC);
     prefs.putFloat("temp_hi", settings_.temperatureWarnHighC);
+    prefs.putBool("flow_en", settings_.flowSensorEnabled);
+    prefs.putFloat("flow_ppl", settings_.flowPulsesPerLiter);
     prefs.end();
     return true;
 }

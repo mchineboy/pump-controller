@@ -196,6 +196,14 @@ void ApplicationController::applyTemperatureSettings(const GlobalSettings& setti
     }
 }
 
+void ApplicationController::applyFlowSettings(const GlobalSettings& settings) {
+    flow_.begin(PUMP_FLOW_PIN);
+    flow_.configure(settings.flowSensorEnabled, settings.flowPulsesPerLiter);
+    if (settings.flowSensorEnabled) {
+        logger_.log("flow_ok");
+    }
+}
+
 void ApplicationController::begin() {
     Serial.begin(115200);
     delay(200);
@@ -224,6 +232,7 @@ void ApplicationController::begin() {
     applyReservoirSettings(settings);
     applyLoadCellSettings(settings);
     applyTemperatureSettings(settings);
+    applyFlowSettings(settings);
     beginNetwork();
     web_.begin(
         pump_,
@@ -236,7 +245,8 @@ void ApplicationController::begin() {
         tmc_,
         reservoir_,
         loadCell_,
-        temperature_
+        temperature_,
+        flow_
     );
 
     logger_.log("boot");
@@ -247,6 +257,7 @@ void ApplicationController::loop() {
     safety_.update();
     loadCell_.update();
     temperature_.update();
+    flow_.update();
     if (temperature_.isEnabled() && temperature_.isReady()) {
         const bool warning = temperature_.warnLow() || temperature_.warnHigh();
         if (warning && !temperatureWarned_) {

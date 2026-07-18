@@ -125,6 +125,20 @@
             <input id="temp-hi" type="number" step="0.1" value="40">
           </label>
         </fieldset>
+        <fieldset>
+          <legend>Flow sensor (optional)</legend>
+          <label class="checkbox">
+            <input id="flow-en" type="checkbox">
+            Enable pulse flow sensor (GPIO 4)
+          </label>
+          <label>
+            Pulses per liter (K-factor)
+            <input id="flow-ppl" type="number" min="1" step="1" value="450">
+          </label>
+          <div class="actions">
+            <button type="button" id="flow-reset-btn">Reset cumulative volume</button>
+          </div>
+        </fieldset>
         <div class="actions">
           <button type="submit">Save settings</button>
         </div>
@@ -136,6 +150,7 @@
       <p id="reservoir-live" class="status-line">Reservoir: —</p>
       <p id="loadcell-live" class="status-line">Load cell: —</p>
       <p id="temp-live" class="status-line">Temperature: —</p>
+      <p id="flow-live" class="status-line">Flow: —</p>
       <div class="actions">
         <button type="button" id="inject-driver-fault-btn">Simulate driver fault</button>
         <button type="button" id="ack-fault-btn">Acknowledge fault</button>
