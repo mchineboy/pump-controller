@@ -66,6 +66,7 @@ private:
         Idle,
         ValvePreOpen,
         MotorRunning,
+        AntiDrip,
         ValvePostClose
     };
 
@@ -86,6 +87,8 @@ private:
     bool valveShouldRun(const FluidProfile& profile) const;
     bool beginValvePreOpen(const FluidProfile& profile);
     bool startPendingMotor();
+    void beginAntiDripOrPostClose();
+    bool startAntiDripMotor();
     void beginValvePostClose();
     void completeValvePostClose();
 
@@ -119,6 +122,10 @@ private:
     uint32_t pendingSpeed_ = 0;
     uint32_t pendingAccel_ = 0;
     bool pendingDirectionInverted_ = false;
+
+    bool antiDripEnabled_ = false;
+    int32_t antiDripReverseSteps_ = 0;
+    uint32_t antiDripSpeed_ = 0;
 
     std::vector<CalibrationSample> samples_;
 };

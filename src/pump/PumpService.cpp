@@ -136,6 +136,40 @@ bool PumpService::startPendingMotor() {
     return true;
 }
 
+void PumpService::beginAntiDripOrPostClose() {
+    if (antiDripEnabled_ && antiDripReverseSteps_ > 0 && antiDripSpeed_ > 0) {
+        if (!startAntiDripMotor()) {
+            return;
+        }
+        return;
+    }
+    beginValvePostClose();
+}
+
+bool PumpService::startAntiDripMotor() {
+    const bool reverseDirection = !pendingDirectionInverted_;
+    const bool started = stepper_->startMove(
+        static_cast<int64_t>(antiDripReverseSteps_),
+        antiDripSpeed_,
+        pendingAccel_ > 0 ? pendingAccel_ : antiDripSpeed_,
+        reverseDirection
+    );
+    if (!started) {
+        beginValvePostClose();
+        return false;
+    }
+    sequencePhase_ = SequencePhase::AntiDrip;
+    phaseStartedMs_ = millis();
+    if (logger_ != nullptr) {
+        JsonDocument fields;
+        fields["profile_id"] = activeProfileId_;
+        fields["reverse_steps"] = antiDripReverseSteps_;
+        fields["speed"] = antiDripSpeed_;
+        logger_->log("anti_drip_started", fields);
+    }
+    return true;
+}
+
 void PumpService::beginValvePostClose() {
     if (!valveInUse_ || valvePostCloseMs_ == 0) {
         completeValvePostClose();
@@ -227,14 +261,24 @@ bool PumpService::startDispense(const DispenseRequest& request) {
     pendingSpeed_ = profile.motor.speedStepsPerSecond;
     pendingAccel_ = profile.motor.accelerationStepsPerSecondSquared;
     pendingDirectionInverted_ = profile.motor.directionInverted;
+    antiDripEnabled_ = profile.valve.antiDripEnabled;
+    antiDripReverseSteps_ = profile.valve.antiDripReverseSteps;
+    antiDripSpeed_ = profile.valve.antiDripSpeedStepsPerSecond;
 
     const double expectedSeconds =
         static_cast<double>(targetSteps) /
         static_cast<double>(profile.motor.speedStepsPerSecond);
-    const uint32_t valveMarginMs =
+    uint32_t valveMarginMs =
         valveShouldRun(profile)
             ? (profile.valve.preOpenMs + profile.valve.postMotorCloseMs)
             : 0;
+    if (antiDripEnabled_ && antiDripReverseSteps_ > 0 && antiDripSpeed_ > 0) {
+        valveMarginMs += static_cast<uint32_t>(
+            (static_cast<int64_t>(antiDripReverseSteps_) * 1000LL) /
+                static_cast<int64_t>(antiDripSpeed_) +
+            500
+        );
+    }
     maxRuntimeMs_ = static_cast<uint32_t>(
         expectedSeconds * 1000.0 * 1.2 + 2000.0 + valveMarginMs
     );
@@ -290,11 +334,21 @@ bool PumpService::startCalibration(const String& profileId, uint32_t durationMs)
     pendingSpeed_ = profile.motor.speedStepsPerSecond;
     pendingAccel_ = profile.motor.accelerationStepsPerSecondSquared;
     pendingDirectionInverted_ = profile.motor.directionInverted;
+    antiDripEnabled_ = profile.valve.antiDripEnabled;
+    antiDripReverseSteps_ = profile.valve.antiDripReverseSteps;
+    antiDripSpeed_ = profile.valve.antiDripSpeedStepsPerSecond;
 
-    const uint32_t valveMarginMs =
+    uint32_t valveMarginMs =
         valveShouldRun(profile)
             ? (profile.valve.preOpenMs + profile.valve.postMotorCloseMs)
             : 0;
+    if (antiDripEnabled_ && antiDripReverseSteps_ > 0 && antiDripSpeed_ > 0) {
+        valveMarginMs += static_cast<uint32_t>(
+            (static_cast<int64_t>(antiDripReverseSteps_) * 1000LL) /
+                static_cast<int64_t>(antiDripSpeed_) +
+            500
+        );
+    }
     maxRuntimeMs_ = durationMs + (durationMs / 5) + 2000 + valveMarginMs;
 
     state_ = SystemState::Calibrating;
@@ -352,11 +406,11 @@ bool PumpService::acknowledgeFault() {
 void PumpService::finishCalibrationMotion() {
     pendingCalibrationSteps_ = stepper_->stepsCompleted();
     pendingCalibrationActualMs_ = millis() - operationStartMs_;
-    beginValvePostClose();
+    beginAntiDripOrPostClose();
 }
 
 void PumpService::finishDispense() {
-    beginValvePostClose();
+    beginAntiDripOrPostClose();
 }
 
 void PumpService::completeStop() {
@@ -412,6 +466,19 @@ void PumpService::update() {
             } else {
                 finishDispense();
             }
+        }
+        return;
+    }
+
+    if (sequencePhase_ == SequencePhase::AntiDrip) {
+        stepper_->update();
+        if (!stepper_->isRunning()) {
+            if (logger_ != nullptr) {
+                JsonDocument fields;
+                fields["profile_id"] = activeProfileId_;
+                logger_->log("anti_drip_completed", fields);
+            }
+            beginValvePostClose();
         }
     }
 }

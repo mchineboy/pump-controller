@@ -20,6 +20,9 @@ const valveEnabled = document.getElementById("valve-enabled");
 const valveActiveHigh = document.getElementById("valve-active-high");
 const valvePreOpen = document.getElementById("valve-pre-open");
 const valvePostClose = document.getElementById("valve-post-close");
+const antiDrip = document.getElementById("anti-drip");
+const antiDripSteps = document.getElementById("anti-drip-steps");
+const antiDripSpeed = document.getElementById("anti-drip-speed");
 const valveHwNote = document.getElementById("valve-hw-note");
 const calNote = document.getElementById("cal-note");
 const configStatus = document.getElementById("config-status");
@@ -44,6 +47,9 @@ async function loadProfile() {
   valveActiveHigh.checked = profile.valve.active_high;
   valvePreOpen.value = profile.valve.pre_open_ms;
   valvePostClose.value = profile.valve.post_motor_close_ms;
+  antiDrip.checked = profile.valve.anti_drip_enabled;
+  antiDripSteps.value = profile.valve.anti_drip_reverse_steps;
+  antiDripSpeed.value = profile.valve.anti_drip_speed_steps_per_second;
   calNote.textContent = profile.calibrated
     ? `Calibrated: ${profile.calibration.steps_per_ml.toFixed(2)} steps/mL`
     : "Not calibrated";
@@ -70,7 +76,10 @@ document.getElementById("profile-form").addEventListener("submit", async (event)
         enabled: valveEnabled.checked,
         active_high: valveActiveHigh.checked,
         pre_open_ms: Number(valvePreOpen.value),
-        post_motor_close_ms: Number(valvePostClose.value)
+        post_motor_close_ms: Number(valvePostClose.value),
+        anti_drip_enabled: antiDrip.checked,
+        anti_drip_reverse_steps: Number(antiDripSteps.value),
+        anti_drip_speed_steps_per_second: Number(antiDripSpeed.value)
       }
     });
     calNote.textContent = profile.calibrated
