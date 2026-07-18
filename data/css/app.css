@@ -332,6 +332,75 @@ dialog {
   color: var(--ink);
 }
 
+dialog.wiring-dialog {
+  width: min(52rem, calc(100% - 1.5rem));
+  max-height: calc(100vh - 2rem);
+  padding: 1rem 1.1rem 1.2rem;
+  overflow: auto;
+}
+
+.wiring-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.wiring-dialog-header h2 {
+  margin-bottom: 0.25rem;
+}
+
+.wiring-close {
+  flex: none;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.wiring-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.wiring-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.wiring-swatch {
+  width: 0.9rem;
+  height: 0.35rem;
+  border-radius: 999px;
+}
+
+.wiring-svg-host {
+  overflow: auto;
+  padding: 0.5rem;
+  background: #121a15;
+  border: 1px solid var(--line);
+}
+
+.wiring-svg {
+  display: block;
+  width: 100%;
+  min-width: 34rem;
+  height: auto;
+}
+
+.wiring-note {
+  margin: 0.85rem 0 0;
+}
+
+.wiring-note a {
+  color: var(--accent);
+}
+
 dialog::backdrop {
   background: rgba(0, 0, 0, 0.55);
 }

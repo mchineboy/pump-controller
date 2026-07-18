@@ -71,7 +71,8 @@ namespaces and reseeds defaults, then reboots.
   motor-driver settings; scale setup; Factory Reset.
 - **Diagnostics:** live hardware readings, fault simulation/acknowledgement,
   flow-session reset, and event log.
-- **Hardware:** read-only wiring and pin-map reference.
+- **Hardware:** read-only pin-map reference and a color-coded SVG wiring
+  diagram modal driven by the active pump count and enabled options.
 
 Configuration uses outcome-oriented labels and keeps electrical details behind
 progressive disclosure. Diagnostics does not mutate durable hardware settings.

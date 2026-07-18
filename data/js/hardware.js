@@ -1,7 +1,9 @@
 import { getStatus } from "./api.js";
 import { connectStatusStream } from "./status-stream.js";
+import { bindWiringDiagramButton } from "./wiring-diagram.js";
 
 const liveStatus = document.getElementById("live-status");
+bindWiringDiagramButton(document.getElementById("wiring-diagram-btn"));
 
 function render(status) {
   const pump =

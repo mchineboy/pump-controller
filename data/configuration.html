@@ -69,12 +69,17 @@
           <input id="valve3-hw" type="checkbox">
           Pump 3 has a shutoff valve
         </label>
+        <div class="actions">
+          <button type="button" id="wiring-diagram-btn">View wiring diagram</button>
+        </div>
         <details class="inline-help">
           <summary>Wiring and behavior</summary>
           <p>
             Profiles select which pump they use. Only one pump moves at a time.
             Pump 2 uses STEP/DIR/ENABLE 5/13/14; Pump 3 uses 22/15/2.
-            See <a href="/hardware.html">Hardware</a> for the complete map.
+            The diagram reflects the pump count and options selected on this page
+            (save first to persist). See <a href="/hardware.html">Hardware</a>
+            for the complete pin list.
           </p>
         </details>
       </section>

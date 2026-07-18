@@ -5,6 +5,7 @@ import {
   tareLoadCell,
   updateSettings
 } from "./api.js";
+import { bindWiringDiagramButton } from "./wiring-diagram.js";
 
 const byId = (id) => document.getElementById(id);
 
@@ -219,6 +220,26 @@ byId("factory-reset-btn").addEventListener("click", async () => {
     factoryStatus.textContent = error.message;
   }
 });
+
+function settingsFromForm() {
+  return {
+    pump_count: Number(fields.pumpCount.value),
+    valve_hardware_present: fields.valveHw.checked,
+    pump2_valve_hardware_present: fields.valve2Hw.checked,
+    pump3_valve_hardware_present: fields.valve3Hw.checked,
+    emergency_stop_enabled: fields.estopEn.checked,
+    driver_uart_enabled: fields.driverUart.checked,
+    reservoir_sensor_enabled: fields.reservoirEn.checked,
+    load_cell_enabled: fields.loadCellEn.checked,
+    temperature_sensor_enabled: fields.tempEn.checked,
+    flow_sensor_enabled: fields.flowEn.checked
+  };
+}
+
+bindWiringDiagramButton(
+  byId("wiring-diagram-btn"),
+  async () => settingsFromForm()
+);
 
 // Establish a stable initial layout before the settings request completes.
 updatePumpEffect();
