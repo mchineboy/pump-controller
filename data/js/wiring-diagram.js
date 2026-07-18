@@ -193,8 +193,8 @@ export function buildWiringDiagramSvg(settings = {}) {
   const parts = [];
 
   // Power source blocks.
-  parts.push(box(20, 66, 120, 52, "12 V supply", ["~3 A fused"]));
-  parts.push(box(20, 150, 120, 50, "5 V buck", ["12 V → 5 V"]));
+  parts.push(box(20, 66, 120, 52, "12 V supply", ["Out: 12 V", "~3 A fused"]));
+  parts.push(box(20, 150, 120, 50, "5 V buck", ["In: 12 V", "Out: 5 V"]));
 
   // 12 V and GND distribution rails across the top.
   parts.push(straight(railLeft, railRight, vmotRailY, "vmot", "12 V rail"));
@@ -208,7 +208,9 @@ export function buildWiringDiagramSvg(settings = {}) {
 
   parts.push(box(espX, espY, espW, espH, "ESP32", [
     "Dev board",
-    `Active pumps: ${model.pumpCount}`
+    `Active pumps: ${model.pumpCount}`,
+    "Power in: 5 V",
+    "Logic out: 3.3 V"
   ]));
 
   // ESP32 power: 5 V in from buck, GND from the rail, 3.3 V logic out.
@@ -220,11 +222,13 @@ export function buildWiringDiagramSvg(settings = {}) {
     const tmcH = pump.valveEnabled ? 120 : 100;
     parts.push(box(tmcX, y, 150, tmcH, `TMC2209 · ${pump.name}`, [
       `UART ${pump.address}`,
+      "Power: 12 V + 3.3 V",
       "EN active low"
     ]));
-    parts.push(box(motorX, y + 10, 150, 78, "NEMA 17", [
+    parts.push(box(motorX, y + 10, 150, 82, "NEMA 17", [
       pump.name,
-      "Peristaltic"
+      "Peristaltic",
+      "Powered via driver"
     ]));
 
     // Driver power and ground drops from the top rails.
@@ -243,10 +247,10 @@ export function buildWiringDiagramSvg(settings = {}) {
       "vio",
       index === 0 ? "VIO 3.3 V" : ""
     ));
-    parts.push(straight(tmcX + 150, motorX, y + 48, "phase", "A/B phases"));
+    parts.push(straight(tmcX + 150, motorX, y + 48, "phase", "4-wire connector"));
 
     if (pump.valveEnabled) {
-      parts.push(compactRow(motorX, y + 100, 150, 34, `Valve · GPIO ${pump.valve}`));
+      parts.push(compactRow(motorX, y + 104, 150, 34, `Valve · GPIO ${pump.valve} · 12 V`));
       parts.push(elbow(
         espX + espW,
         y + 116,
