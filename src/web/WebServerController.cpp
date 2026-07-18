@@ -49,6 +49,14 @@ bool clampValveSettings(const ValveSettings& valve) {
         valve.postMotorCloseMs > Config::kMaxValveTimingMs) {
         return false;
     }
+    if (valve.antiDripReverseSteps < 0 || valve.antiDripReverseSteps > 5000) {
+        return false;
+    }
+    if (valve.antiDripEnabled &&
+        (valve.antiDripSpeedStepsPerSecond < Config::kMinSpeedStepsPerSec ||
+         valve.antiDripSpeedStepsPerSecond > Config::kMaxSpeedStepsPerSec)) {
+        return false;
+    }
     return true;
 }
 
@@ -300,6 +308,10 @@ void WebServerController::registerApiRoutes() {
 
             JsonObjectConst valve = body["valve"].as<JsonObjectConst>();
             if (!valve.isNull()) {
+                const bool previousAntiDrip = profile.valve.antiDripEnabled;
+                const int32_t previousReverse = profile.valve.antiDripReverseSteps;
+                const uint32_t previousAntiSpeed =
+                    profile.valve.antiDripSpeedStepsPerSecond;
                 profile.valve.enabled = valve["enabled"] | profile.valve.enabled;
                 profile.valve.activeHigh =
                     valve["active_high"] | profile.valve.activeHigh;
@@ -307,9 +319,25 @@ void WebServerController::registerApiRoutes() {
                     valve["pre_open_ms"] | profile.valve.preOpenMs;
                 profile.valve.postMotorCloseMs =
                     valve["post_motor_close_ms"] | profile.valve.postMotorCloseMs;
+                profile.valve.antiDripEnabled =
+                    valve["anti_drip_enabled"] | profile.valve.antiDripEnabled;
+                profile.valve.antiDripReverseSteps =
+                    valve["anti_drip_reverse_steps"] |
+                    profile.valve.antiDripReverseSteps;
+                profile.valve.antiDripSpeedStepsPerSecond =
+                    valve["anti_drip_speed_steps_per_second"] |
+                    profile.valve.antiDripSpeedStepsPerSecond;
                 if (!clampValveSettings(profile.valve)) {
                     sendError(request, 400, "valve_settings_out_of_range");
                     return;
+                }
+                const bool antiDripChanged =
+                    previousAntiDrip != profile.valve.antiDripEnabled ||
+                    previousReverse != profile.valve.antiDripReverseSteps ||
+                    previousAntiSpeed != profile.valve.antiDripSpeedStepsPerSecond;
+                if (antiDripChanged && profile.calibrated) {
+                    profile.calibrated = false;
+                    profile.calibration.valid = false;
                 }
             }
 
