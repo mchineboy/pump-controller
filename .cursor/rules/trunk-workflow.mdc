@@ -1,0 +1,34 @@
+---
+description: Trunk-based development with scoped issue branches
+alwaysApply: true
+---
+
+# Trunk development workflow
+
+`main` is the trunk. All product work lands there via short-lived branches.
+
+## Branch naming
+
+- `feature/<issue>-<short-slug>` — new capability
+- `task/<issue>-<short-slug>` — scoped non-feature work (docs, plumbing)
+- `bug/<issue>-<short-slug>` — defect fix
+
+Examples: `feature/2-valve-sequence`, `task/5-estop-docs`, `bug/12-calib-nvs`
+
+## Per-issue cycle
+
+1. Start from up-to-date `main`.
+2. Create a branch named as above for **one** GitHub issue.
+3. Implement only that issue’s scope; leave out-of-scope items alone.
+4. Commit with a message that ends with `Closes #<n>` (or `Fixes #<n>`).
+5. Open a PR into `main`, merge it (squash or merge per repo default), delete the branch.
+6. Confirm the issue is closed; add a brief closing note if needed.
+7. Return to `main` and pull before starting the next issue.
+
+## Rules of engagement
+
+- Do not commit directly to `main` for issue work.
+- Do not batch unrelated issues on one branch.
+- Prefer small PRs that match a single issue’s acceptance criteria.
+- Keep secrets out of git (`include/secrets.h` stays ignored).
+- After an omnibus/foundation milestone, use scoped issues only.
