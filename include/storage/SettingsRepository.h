@@ -15,6 +15,10 @@ struct GlobalSettings {
     bool loggingEnabled = true;
     bool webAuthEnabled = false;
     bool valveHardwarePresent = false;
+    bool reservoirSensorEnabled = false;
+    bool reservoirEmptyActiveLow = true;
+    // warn | block | fault
+    String reservoirEmptyPolicy = "block";
 };
 
 class SettingsRepository {

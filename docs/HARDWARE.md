@@ -77,3 +77,19 @@ or short-circuit flags raise `motor_driver_fault`, stop motion, and close the va
 Open-load is only treated as a fault while coils are driven. Acknowledge after the
 condition clears (Diagnostics includes a simulate-fault control for testing without
 hardware).
+
+## Reservoir level sensor (optional)
+
+Default pin: **GPIO 34** (`PUMP_RESERVOIR_PIN`). This pin is input-only and has no
+internal pull-up; use an external pull-up (e.g. 10 kΩ to 3.3 V) with a
+normally-open float or optical empty switch to GND for active-low empty.
+
+Recommended wiring:
+
+- Float switch or optical liquid sensor that asserts empty when the reservoir is
+  low/dry.
+- Default polarity: empty = LOW (enable “Empty signal is active-low” in
+  Diagnostics). Invert if your sensor is active-high.
+- Policy options: **warn** (status only), **block** (refuse new dispense/calibrate),
+  **fault** (also stop an in-progress operation with `reservoir_empty`).
+- With the sensor disabled, dispense behavior is unchanged.

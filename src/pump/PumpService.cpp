@@ -11,7 +11,8 @@ void PumpService::begin(
     ProfileRepository& profiles,
     SafetyController& safety,
     EventLogger& logger,
-    TmcDriverController& tmc
+    TmcDriverController& tmc,
+    ReservoirSensor& reservoir
 ) {
     stepper_ = &stepper;
     valve_ = &valve;
@@ -19,10 +20,15 @@ void PumpService::begin(
     safety_ = &safety;
     logger_ = &logger;
     tmc_ = &tmc;
+    reservoir_ = &reservoir;
     applySafeOutputs();
     sequencePhase_ = SequencePhase::Idle;
     pendingMotion_ = PendingMotion::None;
     state_ = SystemState::Idle;
+}
+
+void PumpService::setReservoirEmptyPolicy(ReservoirEmptyPolicy policy) {
+    reservoirPolicy_ = policy;
 }
 
 void PumpService::logEvent(const char* event) {
@@ -224,6 +230,14 @@ bool PumpService::startDispense(const DispenseRequest& request) {
     if (safety_ != nullptr && safety_->isEmergencyStopActive()) {
         return fail(FaultCode::EmergencyStop);
     }
+    if (reservoir_ != nullptr) {
+        reservoir_->update();
+        if (reservoir_->isEmpty() &&
+            (reservoirPolicy_ == ReservoirEmptyPolicy::Block ||
+             reservoirPolicy_ == ReservoirEmptyPolicy::Fault)) {
+            return fail(FaultCode::ReservoirEmpty);
+        }
+    }
     if (!profiles_->has(request.profileId)) {
         return fail(FaultCode::InternalError);
     }
@@ -311,6 +325,14 @@ bool PumpService::startCalibration(const String& profileId, uint32_t durationMs)
     }
     if (safety_ != nullptr && safety_->isEmergencyStopActive()) {
         return fail(FaultCode::EmergencyStop);
+    }
+    if (reservoir_ != nullptr) {
+        reservoir_->update();
+        if (reservoir_->isEmpty() &&
+            (reservoirPolicy_ == ReservoirEmptyPolicy::Block ||
+             reservoirPolicy_ == ReservoirEmptyPolicy::Fault)) {
+            return fail(FaultCode::ReservoirEmpty);
+        }
     }
     if (!profiles_->has(profileId)) {
         return fail(FaultCode::InternalError);
@@ -437,6 +459,38 @@ bool PumpService::injectMotorDriverFault() {
     return fail(FaultCode::MotorDriverFault);
 }
 
+void PumpService::pollReservoir() {
+    if (reservoir_ == nullptr) {
+        reservoirEmptyWarning_ = false;
+        reservoirWasEmpty_ = false;
+        return;
+    }
+
+    reservoir_->update();
+    const bool empty = reservoir_->isEmpty();
+    if (empty != reservoirWasEmpty_) {
+        if (logger_ != nullptr) {
+            JsonDocument fields;
+            fields["empty"] = empty;
+            fields["policy"] = reservoirEmptyPolicyToString(reservoirPolicy_);
+            logger_->log(empty ? "reservoir_empty" : "reservoir_ok", fields);
+        }
+        reservoirWasEmpty_ = empty;
+    }
+
+    reservoirEmptyWarning_ =
+        empty && reservoirPolicy_ == ReservoirEmptyPolicy::Warn;
+
+    if (!empty || state_ == SystemState::Fault) {
+        return;
+    }
+
+    if (reservoirPolicy_ == ReservoirEmptyPolicy::Fault &&
+        (state_ == SystemState::Dispensing || state_ == SystemState::Calibrating)) {
+        fail(FaultCode::ReservoirEmpty);
+    }
+}
+
 bool PumpService::acknowledgeFault() {
     if (state_ != SystemState::Fault) {
         return true;
@@ -453,6 +507,15 @@ bool PumpService::acknowledgeFault() {
         }
         injectedDriverFault_ = false;
     }
+    if (lastFault_ == FaultCode::ReservoirEmpty) {
+        if (reservoir_ != nullptr) {
+            reservoir_->update();
+            if (reservoir_->isEmpty() &&
+                reservoirPolicy_ != ReservoirEmptyPolicy::Warn) {
+                return false;
+            }
+        }
+    }
     if (logger_ != nullptr && lastFault_ == FaultCode::EmergencyStop) {
         JsonDocument fields;
         fields["fault"] = "emergency_stop";
@@ -461,6 +524,10 @@ bool PumpService::acknowledgeFault() {
         JsonDocument fields;
         fields["fault"] = "motor_driver_fault";
         logger_->log("driver_fault_acknowledged", fields);
+    } else if (logger_ != nullptr && lastFault_ == FaultCode::ReservoirEmpty) {
+        JsonDocument fields;
+        fields["fault"] = "reservoir_empty";
+        logger_->log("reservoir_fault_acknowledged", fields);
     }
     lastFault_ = FaultCode::None;
     enterIdle();
@@ -503,6 +570,7 @@ void PumpService::update() {
     }
 
     pollDriverDiagnostics();
+    pollReservoir();
 
     if (state_ != SystemState::Dispensing && state_ != SystemState::Calibrating) {
         return;

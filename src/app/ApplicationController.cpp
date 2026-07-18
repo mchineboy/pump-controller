@@ -148,6 +148,17 @@ void ApplicationController::applyTmcSettings(const GlobalSettings& settings) {
     }
 }
 
+void ApplicationController::applyReservoirSettings(const GlobalSettings& settings) {
+    reservoir_.begin(
+        PUMP_RESERVOIR_PIN,
+        settings.reservoirSensorEnabled,
+        settings.reservoirEmptyActiveLow
+    );
+    pump_.setReservoirEmptyPolicy(
+        parseReservoirEmptyPolicy(settings.reservoirEmptyPolicy)
+    );
+}
+
 void ApplicationController::begin() {
     Serial.begin(115200);
     delay(200);
@@ -172,7 +183,8 @@ void ApplicationController::begin() {
     valve_.begin(PUMP_VALVE_PIN, settings.valveHardwarePresent, true);
     safety_.begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
 
-    pump_.begin(stepper_, valve_, profiles_, safety_, logger_, tmc_);
+    pump_.begin(stepper_, valve_, profiles_, safety_, logger_, tmc_, reservoir_);
+    applyReservoirSettings(settings);
     beginNetwork();
     web_.begin(
         pump_,
@@ -182,7 +194,8 @@ void ApplicationController::begin() {
         valve_,
         safety_,
         logger_,
-        tmc_
+        tmc_,
+        reservoir_
     );
 
     logger_.log("boot");

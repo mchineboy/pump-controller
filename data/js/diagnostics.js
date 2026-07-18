@@ -19,10 +19,14 @@ const tmcRunMa = document.getElementById("tmc-run-ma");
 const tmcHoldMa = document.getElementById("tmc-hold-ma");
 const tmcMicrosteps = document.getElementById("tmc-microsteps");
 const tmcStealth = document.getElementById("tmc-stealth");
+const reservoirEn = document.getElementById("reservoir-en");
+const reservoirEmptyLow = document.getElementById("reservoir-empty-low");
+const reservoirPolicy = document.getElementById("reservoir-policy");
 const settingsStatus = document.getElementById("settings-status");
 const estopLive = document.getElementById("estop-live");
 const tmcLive = document.getElementById("tmc-live");
 const tmcDiag = document.getElementById("tmc-diag");
+const reservoirLive = document.getElementById("reservoir-live");
 const eventList = document.getElementById("event-list");
 
 function renderEstop(status) {
@@ -52,9 +56,21 @@ function renderTmc(status) {
     : "Driver flags: clear";
 }
 
+function renderReservoir(status) {
+  if (!status.reservoir_sensor_enabled) {
+    reservoirLive.textContent = "Reservoir: sensor disabled";
+    return;
+  }
+  const level = status.reservoir_empty ? "EMPTY" : "ok";
+  const warn = status.reservoir_empty_warning ? " · warn" : "";
+  reservoirLive.textContent =
+    `Reservoir: ${level} · policy ${status.reservoir_empty_policy || "—"}${warn}`;
+}
+
 function renderStatus(status) {
   renderEstop(status);
   renderTmc(status);
+  renderReservoir(status);
 }
 
 async function loadSettings() {
@@ -69,6 +85,9 @@ async function loadSettings() {
   tmcHoldMa.value = settings.driver_hold_current_ma;
   tmcMicrosteps.value = String(settings.driver_microsteps);
   tmcStealth.checked = settings.driver_stealthchop;
+  reservoirEn.checked = settings.reservoir_sensor_enabled;
+  reservoirEmptyLow.checked = settings.reservoir_empty_active_low;
+  reservoirPolicy.value = settings.reservoir_empty_policy || "block";
 }
 
 async function loadEvents() {
@@ -99,7 +118,10 @@ document.getElementById("settings-form").addEventListener("submit", async (event
       driver_run_current_ma: Number(tmcRunMa.value),
       driver_hold_current_ma: Number(tmcHoldMa.value),
       driver_microsteps: Number(tmcMicrosteps.value),
-      driver_stealthchop: tmcStealth.checked
+      driver_stealthchop: tmcStealth.checked,
+      reservoir_sensor_enabled: reservoirEn.checked,
+      reservoir_empty_active_low: reservoirEmptyLow.checked,
+      reservoir_empty_policy: reservoirPolicy.value
     });
     settingsStatus.textContent = saved.driver_uart_enabled && !saved.driver_uart_ready
       ? `Settings saved. UART warning: ${saved.driver_uart_error || "not ready"}`
