@@ -2,7 +2,10 @@ import { getSettings } from "./api.js";
 
 const WIRE = {
   vmot: { color: "#e74c3c", label: "12 V / VMOT" },
+  v5: { color: "#ffb300", label: "5 V" },
+  vio: { color: "#cddc39", label: "3.3 V logic (VIO)" },
   gnd: { color: "#b0bec5", label: "GND" },
+  phase: { color: "#8d6e63", label: "Motor phases" },
   step: { color: "#f1c40f", label: "STEP" },
   dir: { color: "#3498db", label: "DIR" },
   enable: { color: "#2ecc71", label: "ENABLE" },
@@ -103,6 +106,17 @@ function straight(x1, x2, y, kind, label) {
   `;
 }
 
+function vline(x, y1, y2, kind, label) {
+  const { color } = WIRE[kind];
+  return `
+    <line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}"
+      stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>
+    ${label
+      ? `<text x="${x + 5}" y="${(y1 + y2) / 2}" class="wd-wire-label" fill="${color}">${escapeXml(label)}</text>`
+      : ""}
+  `;
+}
+
 function legendItems(activeKinds) {
   return activeKinds.map((kind) => {
     const item = WIRE[kind];
@@ -158,29 +172,48 @@ export function buildWiringDiagramSvg(settings = {}) {
   }
 
   const sensorsHeight = sensors.length ? 36 + sensors.length * 34 : 0;
-  const width = 760;
-  const espX = 170;
-  const espY = 86;
+  const width = 810;
+  const espX = 200;
+  const espY = 96;
   const espW = 150;
   const espH = Math.max(200, pumpsHeight);
-  const tmcX = 400;
-  const motorX = 580;
+  const tmcX = 440;
+  const motorX = 620;
   const height = espY + espH + sensorsHeight + 24;
 
+  const vmotRailY = 24;
+  const gndRailY = 44;
+  const railLeft = 150;
+  const railRight = 560;
+  const vmotDropX = tmcX + 24;
+  const gndDropX = tmcX + 52;
+  const lastPumpTop =
+    espY + (model.pumps.length - 1) * (pumpBlockH + pumpGap);
+
   const parts = [];
-  parts.push(box(20, 16, 120, 58, "12 V supply", ["~3 A fused"]));
-  parts.push(box(20, 86, 120, 52, "5 V buck", ["→ ESP 5V/VIN"]));
-  parts.push(straight(140, espX, 36, "vmot", "12 V rail"));
-  parts.push(elbow(80, 138, espX, espY + 36, "gnd", "GND"));
+
+  // Power source blocks.
+  parts.push(box(20, 66, 120, 52, "12 V supply", ["~3 A fused"]));
+  parts.push(box(20, 150, 120, 50, "5 V buck", ["12 V → 5 V"]));
+
+  // 12 V and GND distribution rails across the top.
+  parts.push(straight(railLeft, railRight, vmotRailY, "vmot", "12 V rail"));
+  parts.push(straight(railLeft, railRight, gndRailY, "gnd", "GND rail"));
+
+  // Feed the rails from the supply and buck.
+  parts.push(elbow(140, 80, railLeft, vmotRailY, "vmot", ""));
+  parts.push(vline(80, 118, 150, "vmot", "12 V"));
+  parts.push(elbow(140, 100, railLeft, gndRailY, "gnd", ""));
+  parts.push(elbow(140, 190, railLeft, gndRailY, "gnd", ""));
+
   parts.push(box(espX, espY, espW, espH, "ESP32", [
     "Dev board",
     `Active pumps: ${model.pumpCount}`
   ]));
-  parts.push(`
-    <text x="24" y="78" class="wd-line">
-      12 V also feeds each TMC VMOT (common ground)
-    </text>
-  `);
+
+  // ESP32 power: 5 V in from buck, GND from the rail, 3.3 V logic out.
+  parts.push(elbow(140, 175, espX, espY + 24, "v5", "5 V"));
+  parts.push(vline(espX + 40, gndRailY, espY, "gnd", "GND"));
 
   model.pumps.forEach((pump, index) => {
     const y = espY + index * (pumpBlockH + pumpGap);
@@ -194,10 +227,23 @@ export function buildWiringDiagramSvg(settings = {}) {
       "Peristaltic"
     ]));
 
+    // Driver power and ground drops from the top rails.
+    parts.push(vline(vmotDropX, vmotRailY, y, "vmot", index === 0 ? "VMOT" : ""));
+    parts.push(vline(gndDropX, gndRailY, y, "gnd", index === 0 ? "GND" : ""));
+
+    // Logic signals and 3.3 V reference from the ESP32.
     parts.push(elbow(espX + espW, y + 32, tmcX, y + 32, "step", `STEP ${pump.step}`));
     parts.push(elbow(espX + espW, y + 52, tmcX, y + 52, "dir", `DIR ${pump.dir}`));
     parts.push(elbow(espX + espW, y + 72, tmcX, y + 72, "enable", `EN ${pump.enable}`));
-    parts.push(straight(tmcX + 150, motorX, y + 48, "vmot", "motor"));
+    parts.push(elbow(
+      espX + espW,
+      y + 92,
+      tmcX,
+      y + 92,
+      "vio",
+      index === 0 ? "VIO 3.3 V" : ""
+    ));
+    parts.push(straight(tmcX + 150, motorX, y + 48, "phase", "A/B phases"));
 
     if (pump.valveEnabled) {
       parts.push(compactRow(motorX, y + 100, 150, 34, `Valve · GPIO ${pump.valve}`));
@@ -212,6 +258,12 @@ export function buildWiringDiagramSvg(settings = {}) {
     }
   });
 
+  // Extend the GND drop down the driver column so every TMC shares it.
+  if (model.pumps.length > 1) {
+    parts.push(vline(gndDropX, gndRailY, lastPumpTop, "gnd", ""));
+    parts.push(vline(vmotDropX, vmotRailY, lastPumpTop, "vmot", ""));
+  }
+
   if (model.options.uart) {
     const txY = espY + espH - 40;
     const rxY = espY + espH - 22;
@@ -219,7 +271,7 @@ export function buildWiringDiagramSvg(settings = {}) {
     parts.push(straight(espX + espW, tmcX + 140, rxY, "uartRx", "RX GPIO 16"));
     model.pumps.forEach((pump, index) => {
       const y = espY + index * (pumpBlockH + pumpGap) + 88;
-      const dropX = tmcX + 30 + index * 28;
+      const dropX = tmcX + 95 + index * 16;
       parts.push(`
         <line x1="${dropX}" y1="${txY}" x2="${dropX}" y2="${y}"
           stroke="${WIRE.uartTx.color}" stroke-width="2" stroke-dasharray="4 3"/>
@@ -242,7 +294,16 @@ export function buildWiringDiagramSvg(settings = {}) {
     ));
   });
 
-  const activeKinds = ["vmot", "gnd", "step", "dir", "enable"];
+  const activeKinds = [
+    "vmot",
+    "v5",
+    "vio",
+    "gnd",
+    "phase",
+    "step",
+    "dir",
+    "enable"
+  ];
   if (model.pumps.some((pump) => pump.valveEnabled)) {
     activeKinds.push("valve");
   }
