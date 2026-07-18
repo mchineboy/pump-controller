@@ -81,8 +81,10 @@ pio run -t uploadfs     # upload data/ to LittleFS
 pio device monitor      # serial log (115200)
 ```
 
-**Warning:** `uploadfs` rewrites the LittleFS image and clears profiles,
-calibration history, and logs stored on the device.
+**Note:** `uploadfs` rewrites the LittleFS image (web UI + any files on that
+partition). Profile calibrations and hardware settings are stored in **NVS** and
+are preserved. Event logs / LittleFS calibration history files are cleared by
+`uploadfs`. NVS is never erased by firmware except via explicit **Factory Reset**.
 
 After flashing, use the DHCP address from serial, or join the fallback AP
 `PumpController` / `pumpsetup` and open http://192.168.4.1.

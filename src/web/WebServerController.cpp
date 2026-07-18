@@ -1311,6 +1311,52 @@ void WebServerController::registerApiRoutes() {
         sendJson(request, 200, doc);
     });
 
+    server_.on(
+        "/api/factory-reset",
+        HTTP_POST,
+        [](AsyncWebServerRequest* request) {},
+        nullptr,
+        [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t, size_t) {
+            if (!requireAuth(request)) {
+                return;
+            }
+            JsonDocument body;
+            if (!readJsonBody(data, len, body)) {
+                sendError(request, 400, "invalid_json");
+                return;
+            }
+            const char* confirm = body["confirm"] | "";
+            if (strcmp(confirm, "FACTORY_RESET") != 0) {
+                sendError(request, 400, "confirm_required");
+                return;
+            }
+            if (pump_ != nullptr && pump_->isBusy()) {
+                sendError(request, 409, "operation_in_progress");
+                return;
+            }
+
+            const bool profilesOk =
+                profiles_ != nullptr && profiles_->factoryResetProfiles();
+            const bool settingsOk =
+                settings_ != nullptr && settings_->factoryResetSettings();
+            if (logger_ != nullptr) {
+                logger_->clear();
+                logger_->log("factory_reset");
+            }
+            if (!profilesOk || !settingsOk) {
+                sendError(request, 500, "factory_reset_failed");
+                return;
+            }
+
+            JsonDocument doc;
+            doc["reset"] = true;
+            doc["rebooting"] = true;
+            sendJson(request, 200, doc);
+            delay(250);
+            ESP.restart();
+        }
+    );
+
     server_.on("/api/config/export", HTTP_GET, [this](AsyncWebServerRequest* request) {
         if (!requireAuth(request)) {
             return;

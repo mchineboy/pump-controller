@@ -45,7 +45,10 @@ public:
     bool begin();
     GlobalSettings get() const { return settings_; }
     bool save(const GlobalSettings& settings);
+    /** Clear NVS settings namespace and restore in-memory defaults. */
+    bool factoryResetSettings();
 
 private:
     GlobalSettings settings_;
+    void loadDefaults();
 };

@@ -9,7 +9,7 @@ Preferences prefs;
 constexpr const char* kNamespace = "pump_settings";
 }  // namespace
 
-bool SettingsRepository::begin() {
+void SettingsRepository::loadDefaults() {
     settings_.deviceName = Config::kDeviceName;
     settings_.hostname = Config::kHostname;
     settings_.wifiMode = "ap";
@@ -22,6 +22,8 @@ bool SettingsRepository::begin() {
     settings_.driverHoldCurrentMa = Config::kDefaultTmcHoldCurrentMa;
     settings_.driverMicrosteps = Config::kDefaultTmcMicrosteps;
     settings_.driverStealthChop = true;
+    settings_.loggingEnabled = true;
+    settings_.webAuthEnabled = false;
     settings_.reservoirSensorEnabled = false;
     settings_.reservoirEmptyActiveLow = true;
     settings_.reservoirEmptyPolicy = "block";
@@ -38,6 +40,10 @@ bool SettingsRepository::begin() {
     settings_.dispenseFeedbackSource = "auto";
     settings_.dispenseFeedbackTolerancePercent = 5.0f;
     settings_.dispenseFeedbackOnMiss = "warn";
+}
+
+bool SettingsRepository::begin() {
+    loadDefaults();
 
     if (!prefs.begin(kNamespace, false)) {
         return true;
@@ -150,4 +156,13 @@ bool SettingsRepository::save(const GlobalSettings& settings) {
     prefs.putString("fb_on_miss", settings_.dispenseFeedbackOnMiss);
     prefs.end();
     return true;
+}
+
+bool SettingsRepository::factoryResetSettings() {
+    if (prefs.begin(kNamespace, false)) {
+        prefs.clear();
+        prefs.end();
+    }
+    loadDefaults();
+    return save(settings_);
 }

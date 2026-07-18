@@ -46,6 +46,11 @@ public:
     bool exportToJson(JsonDocument& doc) const;
     bool importFromJson(const JsonDocument& doc);
 
+    /** Wipe NVS profile store and reseed defaults. Does not touch settings NVS. */
+    bool factoryResetProfiles();
+    /** Delete LittleFS history_* and legacy profiles.json copies. */
+    void eraseFilesystemArtifacts();
+
 private:
     std::vector<FluidProfile> profiles_;
     String activeId_ = "fluid_1";
@@ -53,10 +58,13 @@ private:
     void seedDefaults();
     FluidProfile makeDefault(const char* id, const char* name) const;
     int findIndex(const String& id) const;
+    bool loadFromNvs();
+    bool saveToNvs() const;
     bool loadFromFs();
-    bool saveToFs() const;
+    bool migrateLegacySingleProfileNvs();
     bool loadHistory(const String& profileId, JsonDocument& doc) const;
     bool saveHistory(const String& profileId, const JsonDocument& doc) const;
     void profileToJson(const FluidProfile& profile, JsonObject obj) const;
     bool profileFromJson(const JsonVariantConst src, FluidProfile& profile) const;
+    String profileNvsKey(const String& id) const;
 };

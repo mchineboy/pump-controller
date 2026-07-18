@@ -204,6 +204,23 @@
     </section>
 
     <section class="panel">
+      <h2>Factory reset</h2>
+      <p class="meta">
+        Clears NVS hardware settings and all fluid calibrations/profiles, then reboots.
+        Web UI assets are not removed. Type <code>FACTORY_RESET</code> to confirm.
+        Normal firmware / filesystem uploads do <strong>not</strong> erase NVS.
+      </p>
+      <label>
+        Confirmation
+        <input id="factory-confirm" type="text" autocomplete="off" placeholder="FACTORY_RESET">
+      </label>
+      <div class="actions">
+        <button type="button" id="factory-reset-btn" class="danger">Factory reset</button>
+      </div>
+      <p id="factory-status" class="meta"></p>
+    </section>
+
+    <section class="panel">
       <h2>Event log</h2>
       <div class="actions">
         <button type="button" id="refresh-log-btn">Refresh</button>
