@@ -15,6 +15,11 @@ bool SettingsRepository::begin() {
     settings_.wifiMode = "ap";
     settings_.emergencyStopEnabled = false;
     settings_.valveHardwarePresent = false;
+    settings_.driverUartEnabled = false;
+    settings_.driverRunCurrentMa = Config::kDefaultTmcRunCurrentMa;
+    settings_.driverHoldCurrentMa = Config::kDefaultTmcHoldCurrentMa;
+    settings_.driverMicrosteps = Config::kDefaultTmcMicrosteps;
+    settings_.driverStealthChop = true;
 
     if (!prefs.begin(kNamespace, false)) {
         return true;
@@ -27,6 +32,14 @@ bool SettingsRepository::begin() {
         prefs.getBool("estop_en", settings_.emergencyStopEnabled);
     settings_.driverUartEnabled =
         prefs.getBool("driver_uart", settings_.driverUartEnabled);
+    settings_.driverRunCurrentMa =
+        prefs.getUShort("tmc_run_ma", settings_.driverRunCurrentMa);
+    settings_.driverHoldCurrentMa =
+        prefs.getUShort("tmc_hold_ma", settings_.driverHoldCurrentMa);
+    settings_.driverMicrosteps =
+        prefs.getUShort("tmc_msteps", settings_.driverMicrosteps);
+    settings_.driverStealthChop =
+        prefs.getBool("tmc_stealth", settings_.driverStealthChop);
     settings_.loggingEnabled = prefs.getBool("logging", settings_.loggingEnabled);
     settings_.webAuthEnabled = prefs.getBool("web_auth", settings_.webAuthEnabled);
     settings_.valveHardwarePresent =
@@ -53,6 +66,10 @@ bool SettingsRepository::save(const GlobalSettings& settings) {
     prefs.putString("wifi_mode", settings_.wifiMode);
     prefs.putBool("estop_en", settings_.emergencyStopEnabled);
     prefs.putBool("driver_uart", settings_.driverUartEnabled);
+    prefs.putUShort("tmc_run_ma", settings_.driverRunCurrentMa);
+    prefs.putUShort("tmc_hold_ma", settings_.driverHoldCurrentMa);
+    prefs.putUShort("tmc_msteps", settings_.driverMicrosteps);
+    prefs.putBool("tmc_stealth", settings_.driverStealthChop);
     prefs.putBool("logging", settings_.loggingEnabled);
     prefs.putBool("web_auth", settings_.webAuthEnabled);
     prefs.putBool("valve_hw", settings_.valveHardwarePresent);

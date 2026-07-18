@@ -8,6 +8,10 @@ struct GlobalSettings {
     String wifiMode = "ap";  // ap | station
     bool emergencyStopEnabled = false;
     bool driverUartEnabled = false;
+    uint16_t driverRunCurrentMa = 800;
+    uint16_t driverHoldCurrentMa = 400;
+    uint16_t driverMicrosteps = 16;
+    bool driverStealthChop = true;
     bool loggingEnabled = true;
     bool webAuthEnabled = false;
     bool valveHardwarePresent = false;

@@ -44,6 +44,29 @@ bool clampMotorSettings(MotorSettings& motor) {
     return true;
 }
 
+bool clampTmcSettings(const GlobalSettings& settings) {
+    if (settings.driverRunCurrentMa < 100 || settings.driverRunCurrentMa > 2000) {
+        return false;
+    }
+    if (settings.driverHoldCurrentMa > settings.driverRunCurrentMa) {
+        return false;
+    }
+    switch (settings.driverMicrosteps) {
+        case 1:
+        case 2:
+        case 4:
+        case 8:
+        case 16:
+        case 32:
+        case 64:
+        case 128:
+        case 256:
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool clampValveSettings(const ValveSettings& valve) {
     if (valve.preOpenMs > Config::kMaxValveTimingMs ||
         valve.postMotorCloseMs > Config::kMaxValveTimingMs) {
@@ -117,6 +140,34 @@ void WebServerController::fillProfileJson(
     limits["maximum_ml"] = profile.limits.maximumMl;
 }
 
+void WebServerController::fillTmcSettingsJson(
+    const GlobalSettings& settings,
+    JsonObject doc
+) const {
+    doc["driver_uart_enabled"] = settings.driverUartEnabled;
+    doc["driver_run_current_ma"] = settings.driverRunCurrentMa;
+    doc["driver_hold_current_ma"] = settings.driverHoldCurrentMa;
+    doc["driver_microsteps"] = settings.driverMicrosteps;
+    doc["driver_stealthchop"] = settings.driverStealthChop;
+}
+
+bool WebServerController::applyTmcFromBody(
+    JsonObjectConst body,
+    GlobalSettings& settings
+) const {
+    settings.driverUartEnabled =
+        body["driver_uart_enabled"] | settings.driverUartEnabled;
+    settings.driverRunCurrentMa =
+        body["driver_run_current_ma"] | settings.driverRunCurrentMa;
+    settings.driverHoldCurrentMa =
+        body["driver_hold_current_ma"] | settings.driverHoldCurrentMa;
+    settings.driverMicrosteps =
+        body["driver_microsteps"] | settings.driverMicrosteps;
+    settings.driverStealthChop =
+        body["driver_stealthchop"] | settings.driverStealthChop;
+    return clampTmcSettings(settings);
+}
+
 void WebServerController::begin(
     PumpService& pump,
     ProfileRepository& profiles,
@@ -124,7 +175,8 @@ void WebServerController::begin(
     StepperController& stepper,
     ValveController& valve,
     SafetyController& safety,
-    EventLogger& logger
+    EventLogger& logger,
+    TmcDriverController& tmc
 ) {
     pump_ = &pump;
     profiles_ = &profiles;
@@ -133,6 +185,7 @@ void WebServerController::begin(
     valve_ = &valve;
     safety_ = &safety;
     logger_ = &logger;
+    tmc_ = &tmc;
 
     registerApiRoutes();
     registerStaticRoutes();
@@ -188,6 +241,13 @@ void WebServerController::registerApiRoutes() {
         doc["valve_open"] = valve_->isOpen();
         doc["estop_enabled"] = safety_->isEnabled();
         doc["estop_active"] = safety_->isEmergencyStopActive();
+        doc["driver_uart_enabled"] = tmc_ != nullptr && tmc_->isEnabled();
+        doc["driver_uart_ready"] = tmc_ != nullptr && tmc_->isReady();
+        if (tmc_ != nullptr && !tmc_->lastError().isEmpty()) {
+            doc["driver_uart_error"] = tmc_->lastError();
+        } else {
+            doc["driver_uart_error"] = nullptr;
+        }
         doc["ip"] = WiFi.status() == WL_CONNECTED
             ? WiFi.localIP().toString()
             : WiFi.softAPIP().toString();
@@ -662,6 +722,7 @@ void WebServerController::registerApiRoutes() {
         doc["logging_enabled"] = settings.loggingEnabled;
         doc["web_auth_enabled"] = settings.webAuthEnabled;
         doc["valve_hardware_present"] = settings.valveHardwarePresent;
+        fillTmcSettingsJson(settings, doc.as<JsonObject>());
         sendJson(request, 200, doc);
     });
 
@@ -688,6 +749,10 @@ void WebServerController::registerApiRoutes() {
                 body["emergency_stop_enabled"] | settings.emergencyStopEnabled;
             settings.valveHardwarePresent =
                 body["valve_hardware_present"] | settings.valveHardwarePresent;
+            if (!applyTmcFromBody(body.as<JsonObjectConst>(), settings)) {
+                sendError(request, 400, "tmc_settings_out_of_range");
+                return;
+            }
             if (!settings_->save(settings)) {
                 sendError(request, 500, "storage_failure");
                 return;
@@ -703,11 +768,33 @@ void WebServerController::registerApiRoutes() {
             if (safety_ != nullptr) {
                 safety_->begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
             }
+            if (tmc_ != nullptr) {
+                TmcDriverConfig config;
+                config.enabled = settings.driverUartEnabled;
+                config.runCurrentMa = settings.driverRunCurrentMa;
+                config.holdCurrentMa = settings.driverHoldCurrentMa;
+                config.microsteps = settings.driverMicrosteps;
+                config.stealthChop = settings.driverStealthChop;
+                if (!tmc_->apply(config) && settings.driverUartEnabled) {
+                    JsonDocument fields;
+                    fields["error"] = tmc_->lastError();
+                    logger_->log("tmc_uart_warning", fields);
+                } else if (settings.driverUartEnabled && tmc_->isReady()) {
+                    logger_->log("tmc_uart_ok");
+                }
+            }
             JsonDocument doc;
             doc["saved"] = true;
             doc["web_auth_enabled"] = settings.webAuthEnabled;
             doc["valve_hardware_present"] = settings.valveHardwarePresent;
             doc["emergency_stop_enabled"] = settings.emergencyStopEnabled;
+            fillTmcSettingsJson(settings, doc.as<JsonObject>());
+            doc["driver_uart_ready"] = tmc_ != nullptr && tmc_->isReady();
+            if (tmc_ != nullptr && !tmc_->lastError().isEmpty()) {
+                doc["driver_uart_error"] = tmc_->lastError();
+            } else {
+                doc["driver_uart_error"] = nullptr;
+            }
             sendJson(request, 200, doc);
         }
     );
@@ -744,6 +831,7 @@ void WebServerController::registerApiRoutes() {
         settingsObj["web_auth_enabled"] = settings.webAuthEnabled;
         settingsObj["emergency_stop_enabled"] = settings.emergencyStopEnabled;
         settingsObj["valve_hardware_present"] = settings.valveHardwarePresent;
+        fillTmcSettingsJson(settings, settingsObj);
         profiles_->exportToJson(doc);
         sendJson(request, 200, doc);
     });
@@ -781,8 +869,21 @@ void WebServerController::registerApiRoutes() {
                 settings.valveHardwarePresent =
                     settingsObj["valve_hardware_present"] |
                     settings.valveHardwarePresent;
+                if (!applyTmcFromBody(settingsObj, settings)) {
+                    sendError(request, 400, "tmc_settings_out_of_range");
+                    return;
+                }
                 settings_->save(settings);
                 logger_->setEnabled(settings.loggingEnabled);
+                if (tmc_ != nullptr) {
+                    TmcDriverConfig config;
+                    config.enabled = settings.driverUartEnabled;
+                    config.runCurrentMa = settings.driverRunCurrentMa;
+                    config.holdCurrentMa = settings.driverHoldCurrentMa;
+                    config.microsteps = settings.driverMicrosteps;
+                    config.stealthChop = settings.driverStealthChop;
+                    tmc_->apply(config);
+                }
             }
             if (logger_ != nullptr) {
                 logger_->log("configuration_imported");

@@ -18,6 +18,15 @@
 #ifndef PUMP_ESTOP_PIN
 #define PUMP_ESTOP_PIN 32
 #endif
+#ifndef PUMP_TMC_RX_PIN
+#define PUMP_TMC_RX_PIN 16
+#endif
+#ifndef PUMP_TMC_TX_PIN
+#define PUMP_TMC_TX_PIN 17
+#endif
+#ifndef PUMP_RESERVOIR_PIN
+#define PUMP_RESERVOIR_PIN 34
+#endif
 
 namespace Config {
 constexpr const char* kDeviceName = "Fluid Dispensing Controller";
@@ -38,4 +47,7 @@ constexpr uint32_t kDriverDisableDelayMs = 500;
 constexpr float kCalibrationCvWarningPercent = 3.0f;
 constexpr int kProfilesSchemaVersion = 2;
 constexpr uint32_t kMaxValveTimingMs = 5000;
+constexpr uint16_t kDefaultTmcRunCurrentMa = 800;
+constexpr uint16_t kDefaultTmcHoldCurrentMa = 400;
+constexpr uint16_t kDefaultTmcMicrosteps = 16;
 }  // namespace Config

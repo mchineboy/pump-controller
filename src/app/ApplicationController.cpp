@@ -125,6 +125,29 @@ void ApplicationController::beginNetwork() {
     Serial.println(WiFi.softAPIP());
 }
 
+void ApplicationController::applyTmcSettings(const GlobalSettings& settings) {
+    TmcDriverConfig config;
+    config.enabled = settings.driverUartEnabled;
+    config.runCurrentMa = settings.driverRunCurrentMa;
+    config.holdCurrentMa = settings.driverHoldCurrentMa;
+    config.microsteps = settings.driverMicrosteps;
+    config.stealthChop = settings.driverStealthChop;
+
+    if (!tmc_.apply(config)) {
+        Serial.print("TMC2209 UART apply failed: ");
+        Serial.println(tmc_.lastError());
+        JsonDocument fields;
+        fields["error"] = tmc_.lastError();
+        logger_.log("tmc_uart_warning", fields);
+        return;
+    }
+
+    if (config.enabled) {
+        Serial.println("TMC2209 UART configured");
+        logger_.log("tmc_uart_ok");
+    }
+}
+
 void ApplicationController::begin() {
     Serial.begin(115200);
     delay(200);
@@ -144,12 +167,23 @@ void ApplicationController::begin() {
 
     const GlobalSettings settings = settings_.get();
     stepper_.begin(PUMP_STEP_PIN, PUMP_DIR_PIN, PUMP_ENABLE_PIN);
+    tmc_.begin(PUMP_TMC_RX_PIN, PUMP_TMC_TX_PIN);
+    applyTmcSettings(settings);
     valve_.begin(PUMP_VALVE_PIN, settings.valveHardwarePresent, true);
     safety_.begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
 
     pump_.begin(stepper_, valve_, profiles_, safety_, logger_);
     beginNetwork();
-    web_.begin(pump_, profiles_, settings_, stepper_, valve_, safety_, logger_);
+    web_.begin(
+        pump_,
+        profiles_,
+        settings_,
+        stepper_,
+        valve_,
+        safety_,
+        logger_,
+        tmc_
+    );
 
     logger_.log("boot");
     Serial.println("Boot complete. Previous operations are not resumed.");

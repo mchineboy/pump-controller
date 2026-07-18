@@ -2,6 +2,7 @@
 
 #include "diagnostics/EventLogger.h"
 #include "motor/StepperController.h"
+#include "motor/TmcDriverController.h"
 #include "pump/PumpService.h"
 #include "safety/SafetyController.h"
 #include "storage/ProfileRepository.h"
@@ -17,8 +18,10 @@ public:
 private:
     void beginSafeOutputs();
     void beginNetwork();
+    void applyTmcSettings(const GlobalSettings& settings);
 
     StepperController stepper_;
+    TmcDriverController tmc_;
     ValveController valve_;
     ProfileRepository profiles_;
     SettingsRepository settings_;
