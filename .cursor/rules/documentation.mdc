@@ -1,0 +1,44 @@
+---
+description: Keep README and docs in sync with product/hardware/API changes
+alwaysApply: true
+---
+
+# Documentation updates
+
+When a change alters user-visible behavior, hardware, storage, or APIs, update the matching docs in the **same PR** as the code. Do not leave documentation for a follow-up unless the issue explicitly scopes docs-only work.
+
+## What requires a doc pass
+
+Update docs if the change touches any of:
+
+- Pin maps, pump count, optional hardware, or wiring
+- Calibration, profiles, NVS/LittleFS storage, or Factory Reset
+- Web UI flows or HTTP API fields/endpoints
+- Flash/upload survival (`upload`, `uploadfs`, OTA)
+- Features listed in README or phased status in DESIGN.md
+- BOM quantities or part assumptions
+
+## Where to update
+
+| Change type | Primary docs |
+|-------------|--------------|
+| Pins / wiring / multi-pump hardware | `README.md` pin tables, `docs/WIRING.md`, `docs/HARDWARE.md` |
+| Features / product capabilities | `README.md` Features, `docs/DESIGN.md` |
+| Storage / flash survival | `README.md` Notes, `docs/DESIGN.md`, `CONTRIBUTING.md` |
+| Parts / quantities | `docs/BOM.md` |
+| Doc index / links | `docs/README.md` |
+
+Also update `docs/README.md` descriptions when a doc’s role changes.
+
+## Checklist before opening the PR
+
+- [ ] README does not contradict the new behavior (especially pins and features).
+- [ ] HARDWARE.md / WIRING.md match `Config.h` / `platformio.ini` defaults.
+- [ ] DESIGN.md phase/status and storage notes still accurate.
+- [ ] No stale “single pump only” or wiped-by-uploadfs claims for NVS-backed data.
+
+## Examples
+
+- Adding `pump_4` pins → README + HARDWARE + WIRING (+ BOM if parts scale).
+- Moving settings keys → DESIGN storage section + README Notes if survival changes.
+- New Diagnostics control → README Features and the relevant HARDWARE section.

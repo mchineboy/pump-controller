@@ -10,6 +10,8 @@ scope, and how to submit changes.
    non-trivial work so direction can be agreed before code lands.
 2. Search existing issues and PRs for duplicates.
 3. Read [docs/DESIGN.md](docs/DESIGN.md) and [docs/HARDWARE.md](docs/HARDWARE.md).
+   For pin or multi-pump work, also read [docs/WIRING.md](docs/WIRING.md) and the
+   root [README.md](README.md) pin tables.
 
 Small fixes (typos, obvious bugs, pin-map typos) do not need an issue first.
 
@@ -124,6 +126,9 @@ Default GPIO map is documented in the [README](README.md). Override pins via
 - Calibration and dispense speed must stay coupled unless the design doc and
   UI are updated together.
 - When changing API JSON shapes, update both firmware handlers and `data/js/`.
+- When changing pins, pump count, storage, flash survival, or user-facing
+  features, update README / `docs/` in the **same PR** (see
+  `.cursor/rules/documentation.mdc`).
 
 ## Testing expectations
 
@@ -145,8 +150,10 @@ If you lack pump hardware, note that and limit claims to compile/UI checks.
 2. Keep commits readable; squash locally if the history is noisy.
 3. Describe **why** the change exists, not only what files moved.
 4. Link related issues (`Fixes #123`).
-5. Call out breaking changes (pin defaults, LittleFS schema, API fields).
-6. Do not include `secrets.h`, local `upload_port` values, or unrelated
+5. Call out breaking changes (pin defaults, NVS/API fields, `pump_count`).
+6. Confirm documentation matches the change (README pin tables, HARDWARE/WIRING,
+   DESIGN storage/multi-pump notes, BOM quantities when hardware scales).
+7. Do not include `secrets.h`, local `upload_port` values, or unrelated
    reformatting.
 
 Maintainers may ask for narrower PRs if firmware, UI, and docs are tangled.
