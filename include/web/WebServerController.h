@@ -9,6 +9,7 @@
 #include "safety/SafetyController.h"
 #include "sensors/LoadCellSensor.h"
 #include "sensors/ReservoirSensor.h"
+#include "sensors/TemperatureSensor.h"
 #include "storage/ProfileRepository.h"
 #include "storage/SettingsRepository.h"
 #include "valve/ValveController.h"
@@ -25,7 +26,8 @@ public:
         EventLogger& logger,
         TmcDriverController& tmc,
         ReservoirSensor& reservoir,
-        LoadCellSensor& loadCell
+        LoadCellSensor& loadCell,
+        TemperatureSensor& temperature
     );
 
     void update();
@@ -44,12 +46,20 @@ private:
         const GlobalSettings& settings,
         JsonObject doc
     ) const;
+    void fillTemperatureSettingsJson(
+        const GlobalSettings& settings,
+        JsonObject doc
+    ) const;
     bool applyTmcFromBody(JsonObjectConst body, GlobalSettings& settings) const;
     bool applyReservoirFromBody(
         JsonObjectConst body,
         GlobalSettings& settings
     ) const;
     bool applyLoadCellFromBody(
+        JsonObjectConst body,
+        GlobalSettings& settings
+    ) const;
+    bool applyTemperatureFromBody(
         JsonObjectConst body,
         GlobalSettings& settings
     ) const;
@@ -68,6 +78,7 @@ private:
     TmcDriverController* tmc_ = nullptr;
     ReservoirSensor* reservoir_ = nullptr;
     LoadCellSensor* loadCell_ = nullptr;
+    TemperatureSensor* temperature_ = nullptr;
 
     SystemState lastBroadcastState_ = SystemState::Booting;
     uint32_t lastProgressBroadcastMs_ = 0;

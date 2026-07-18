@@ -23,6 +23,9 @@ struct GlobalSettings {
     float loadCellScale = 1.0f;
     int32_t loadCellOffset = 0;
     float fluidDensityGPerMl = 1.0f;
+    bool temperatureSensorEnabled = false;
+    float temperatureWarnLowC = 5.0f;
+    float temperatureWarnHighC = 40.0f;
 };
 
 class SettingsRepository {

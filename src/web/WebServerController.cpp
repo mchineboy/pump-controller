@@ -237,6 +237,33 @@ void WebServerController::persistLoadCellCalibration() {
     settings_->save(settings);
 }
 
+void WebServerController::fillTemperatureSettingsJson(
+    const GlobalSettings& settings,
+    JsonObject doc
+) const {
+    doc["temperature_sensor_enabled"] = settings.temperatureSensorEnabled;
+    doc["temperature_warn_low_c"] = settings.temperatureWarnLowC;
+    doc["temperature_warn_high_c"] = settings.temperatureWarnHighC;
+}
+
+bool WebServerController::applyTemperatureFromBody(
+    JsonObjectConst body,
+    GlobalSettings& settings
+) const {
+    settings.temperatureSensorEnabled =
+        body["temperature_sensor_enabled"] | settings.temperatureSensorEnabled;
+    settings.temperatureWarnLowC =
+        body["temperature_warn_low_c"] | settings.temperatureWarnLowC;
+    settings.temperatureWarnHighC =
+        body["temperature_warn_high_c"] | settings.temperatureWarnHighC;
+    if (!std::isfinite(settings.temperatureWarnLowC) ||
+        !std::isfinite(settings.temperatureWarnHighC) ||
+        settings.temperatureWarnLowC >= settings.temperatureWarnHighC) {
+        return false;
+    }
+    return true;
+}
+
 void WebServerController::begin(
     PumpService& pump,
     ProfileRepository& profiles,
@@ -247,7 +274,8 @@ void WebServerController::begin(
     EventLogger& logger,
     TmcDriverController& tmc,
     ReservoirSensor& reservoir,
-    LoadCellSensor& loadCell
+    LoadCellSensor& loadCell,
+    TemperatureSensor& temperature
 ) {
     pump_ = &pump;
     profiles_ = &profiles;
@@ -259,6 +287,7 @@ void WebServerController::begin(
     tmc_ = &tmc;
     reservoir_ = &reservoir;
     loadCell_ = &loadCell;
+    temperature_ = &temperature;
 
     registerApiRoutes();
     registerStaticRoutes();
@@ -355,6 +384,25 @@ void WebServerController::registerApiRoutes() {
             doc["load_cell_raw"] = nullptr;
             doc["load_cell_ml"] = nullptr;
             doc["load_cell_error"] = nullptr;
+        }
+        doc["temperature_sensor_enabled"] =
+            temperature_ != nullptr && temperature_->isEnabled();
+        doc["temperature_ready"] =
+            temperature_ != nullptr && temperature_->isReady();
+        if (temperature_ != nullptr && temperature_->isEnabled() &&
+            temperature_->isReady() && std::isfinite(temperature_->celsius())) {
+            doc["temperature_c"] = temperature_->celsius();
+            doc["temperature_warn_low"] = temperature_->warnLow();
+            doc["temperature_warn_high"] = temperature_->warnHigh();
+        } else {
+            doc["temperature_c"] = nullptr;
+            doc["temperature_warn_low"] = false;
+            doc["temperature_warn_high"] = false;
+        }
+        if (temperature_ != nullptr && !temperature_->lastError().isEmpty()) {
+            doc["temperature_error"] = temperature_->lastError();
+        } else {
+            doc["temperature_error"] = nullptr;
         }
         doc["ip"] = WiFi.status() == WL_CONNECTED
             ? WiFi.localIP().toString()
@@ -919,6 +967,7 @@ void WebServerController::registerApiRoutes() {
         fillTmcSettingsJson(settings, doc.as<JsonObject>());
         fillReservoirSettingsJson(settings, doc.as<JsonObject>());
         fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
+        fillTemperatureSettingsJson(settings, doc.as<JsonObject>());
         sendJson(request, 200, doc);
     });
 
@@ -955,6 +1004,10 @@ void WebServerController::registerApiRoutes() {
             }
             if (!applyLoadCellFromBody(body.as<JsonObjectConst>(), settings)) {
                 sendError(request, 400, "loadcell_settings_invalid");
+                return;
+            }
+            if (!applyTemperatureFromBody(body.as<JsonObjectConst>(), settings)) {
+                sendError(request, 400, "temperature_settings_invalid");
                 return;
             }
             if (!settings_->save(settings)) {
@@ -998,6 +1051,20 @@ void WebServerController::registerApiRoutes() {
                     logger_->log("loadcell_warning", fields);
                 }
             }
+            if (temperature_ != nullptr) {
+                temperature_->begin(PUMP_TEMP_PIN);
+                temperature_->configure(
+                    settings.temperatureSensorEnabled,
+                    settings.temperatureWarnLowC,
+                    settings.temperatureWarnHighC
+                );
+                if (settings.temperatureSensorEnabled && !temperature_->isReady() &&
+                    logger_ != nullptr) {
+                    JsonDocument fields;
+                    fields["error"] = temperature_->lastError();
+                    logger_->log("temp_warning", fields);
+                }
+            }
             if (tmc_ != nullptr) {
                 TmcDriverConfig config;
                 config.enabled = settings.driverUartEnabled;
@@ -1021,6 +1088,7 @@ void WebServerController::registerApiRoutes() {
             fillTmcSettingsJson(settings, doc.as<JsonObject>());
             fillReservoirSettingsJson(settings, doc.as<JsonObject>());
             fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
+            fillTemperatureSettingsJson(settings, doc.as<JsonObject>());
             doc["driver_uart_ready"] = tmc_ != nullptr && tmc_->isReady();
             if (tmc_ != nullptr && !tmc_->lastError().isEmpty()) {
                 doc["driver_uart_error"] = tmc_->lastError();
@@ -1028,6 +1096,8 @@ void WebServerController::registerApiRoutes() {
                 doc["driver_uart_error"] = nullptr;
             }
             doc["load_cell_ready"] = loadCell_ != nullptr && loadCell_->isReady();
+            doc["temperature_ready"] =
+                temperature_ != nullptr && temperature_->isReady();
             sendJson(request, 200, doc);
         }
     );
@@ -1067,6 +1137,7 @@ void WebServerController::registerApiRoutes() {
         fillTmcSettingsJson(settings, settingsObj);
         fillReservoirSettingsJson(settings, settingsObj);
         fillLoadCellSettingsJson(settings, settingsObj);
+        fillTemperatureSettingsJson(settings, settingsObj);
         profiles_->exportToJson(doc);
         sendJson(request, 200, doc);
     });
@@ -1116,6 +1187,10 @@ void WebServerController::registerApiRoutes() {
                     sendError(request, 400, "loadcell_settings_invalid");
                     return;
                 }
+                if (!applyTemperatureFromBody(settingsObj, settings)) {
+                    sendError(request, 400, "temperature_settings_invalid");
+                    return;
+                }
                 settings_->save(settings);
                 logger_->setEnabled(settings.loggingEnabled);
                 if (reservoir_ != nullptr) {
@@ -1136,6 +1211,14 @@ void WebServerController::registerApiRoutes() {
                         settings.loadCellEnabled,
                         settings.loadCellScale,
                         settings.loadCellOffset
+                    );
+                }
+                if (temperature_ != nullptr) {
+                    temperature_->begin(PUMP_TEMP_PIN);
+                    temperature_->configure(
+                        settings.temperatureSensorEnabled,
+                        settings.temperatureWarnLowC,
+                        settings.temperatureWarnHighC
                     );
                 }
                 if (tmc_ != nullptr) {

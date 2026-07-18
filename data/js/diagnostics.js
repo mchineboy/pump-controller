@@ -33,6 +33,10 @@ const tmcLive = document.getElementById("tmc-live");
 const tmcDiag = document.getElementById("tmc-diag");
 const reservoirLive = document.getElementById("reservoir-live");
 const loadCellLive = document.getElementById("loadcell-live");
+const tempEn = document.getElementById("temp-en");
+const tempLo = document.getElementById("temp-lo");
+const tempHi = document.getElementById("temp-hi");
+const tempLive = document.getElementById("temp-live");
 const eventList = document.getElementById("event-list");
 
 function renderEstop(status) {
@@ -90,11 +94,30 @@ function renderLoadCell(status) {
     (status.load_cell_error ? ` · ${status.load_cell_error}` : "");
 }
 
+function renderTemperature(status) {
+  if (!status.temperature_sensor_enabled) {
+    tempLive.textContent = "Temperature: disabled";
+    return;
+  }
+  const ready = status.temperature_ready ? "ready" : "not ready";
+  const c = status.temperature_c == null
+    ? "—"
+    : `${Number(status.temperature_c).toFixed(2)} °C`;
+  const warns = [];
+  if (status.temperature_warn_low) warns.push("low");
+  if (status.temperature_warn_high) warns.push("high");
+  tempLive.textContent =
+    `Temperature: ${ready} · ${c}` +
+    (warns.length ? ` · warn ${warns.join("/")}` : "") +
+    (status.temperature_error ? ` · ${status.temperature_error}` : "");
+}
+
 function renderStatus(status) {
   renderEstop(status);
   renderTmc(status);
   renderReservoir(status);
   renderLoadCell(status);
+  renderTemperature(status);
 }
 
 async function loadSettings() {
@@ -114,6 +137,9 @@ async function loadSettings() {
   reservoirPolicy.value = settings.reservoir_empty_policy || "block";
   loadCellEn.checked = settings.load_cell_enabled;
   fluidDensity.value = settings.fluid_density_g_per_ml ?? 1;
+  tempEn.checked = settings.temperature_sensor_enabled;
+  tempLo.value = settings.temperature_warn_low_c ?? 5;
+  tempHi.value = settings.temperature_warn_high_c ?? 40;
 }
 
 async function loadEvents() {
@@ -149,13 +175,18 @@ document.getElementById("settings-form").addEventListener("submit", async (event
       reservoir_empty_active_low: reservoirEmptyLow.checked,
       reservoir_empty_policy: reservoirPolicy.value,
       load_cell_enabled: loadCellEn.checked,
-      fluid_density_g_per_ml: Number(fluidDensity.value)
+      fluid_density_g_per_ml: Number(fluidDensity.value),
+      temperature_sensor_enabled: tempEn.checked,
+      temperature_warn_low_c: Number(tempLo.value),
+      temperature_warn_high_c: Number(tempHi.value)
     });
     let message = "Settings saved.";
     if (saved.driver_uart_enabled && !saved.driver_uart_ready) {
       message = `Settings saved. UART warning: ${saved.driver_uart_error || "not ready"}`;
     } else if (saved.load_cell_enabled && !saved.load_cell_ready) {
       message = "Settings saved. Load cell not ready (check wiring).";
+    } else if (saved.temperature_sensor_enabled && !saved.temperature_ready) {
+      message = "Settings saved. Temperature sensor not ready (check wiring).";
     }
     settingsStatus.textContent = message;
     renderStatus(await getStatus());

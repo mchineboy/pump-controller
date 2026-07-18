@@ -177,6 +177,25 @@ void ApplicationController::applyLoadCellSettings(const GlobalSettings& settings
     }
 }
 
+void ApplicationController::applyTemperatureSettings(const GlobalSettings& settings) {
+    temperature_.begin(PUMP_TEMP_PIN);
+    temperature_.configure(
+        settings.temperatureSensorEnabled,
+        settings.temperatureWarnLowC,
+        settings.temperatureWarnHighC
+    );
+    temperatureWarned_ = false;
+    if (settings.temperatureSensorEnabled && !temperature_.isReady()) {
+        Serial.print("Temperature sensor warning: ");
+        Serial.println(temperature_.lastError());
+        JsonDocument fields;
+        fields["error"] = temperature_.lastError();
+        logger_.log("temp_warning", fields);
+    } else if (settings.temperatureSensorEnabled) {
+        logger_.log("temp_ok");
+    }
+}
+
 void ApplicationController::begin() {
     Serial.begin(115200);
     delay(200);
@@ -204,6 +223,7 @@ void ApplicationController::begin() {
     pump_.begin(stepper_, valve_, profiles_, safety_, logger_, tmc_, reservoir_);
     applyReservoirSettings(settings);
     applyLoadCellSettings(settings);
+    applyTemperatureSettings(settings);
     beginNetwork();
     web_.begin(
         pump_,
@@ -215,7 +235,8 @@ void ApplicationController::begin() {
         logger_,
         tmc_,
         reservoir_,
-        loadCell_
+        loadCell_,
+        temperature_
     );
 
     logger_.log("boot");
@@ -225,6 +246,20 @@ void ApplicationController::begin() {
 void ApplicationController::loop() {
     safety_.update();
     loadCell_.update();
+    temperature_.update();
+    if (temperature_.isEnabled() && temperature_.isReady()) {
+        const bool warning = temperature_.warnLow() || temperature_.warnHigh();
+        if (warning && !temperatureWarned_) {
+            JsonDocument fields;
+            fields["celsius"] = temperature_.celsius();
+            fields["warn_low"] = temperature_.warnLow();
+            fields["warn_high"] = temperature_.warnHigh();
+            logger_.log("temp_threshold", fields);
+            temperatureWarned_ = true;
+        } else if (!warning) {
+            temperatureWarned_ = false;
+        }
+    }
     pump_.update();
     web_.update();
 }
