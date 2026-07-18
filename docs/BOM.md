@@ -26,4 +26,5 @@ Puschmann’s NEMA 17 peristaltic pump and this ESP32 controller.
 | Sensing | Load cell | Strain-gauge load cell, typically 1–5 kg capacity, matched mount for vessel | 1 | Optional | Phase 4 verification; pair with HX711 |
 | Sensing | HX711 amplifier | HX711 load-cell ADC module, ESP32-compatible logic levels | 1 | Optional | DT GPIO 19, SCK GPIO 18 by default |
 | Sensing | Temperature sensor | DS18B20 1-Wire digital thermometer | 1 | Optional | GPIO 23 with 4.7 kΩ pull-up to 3.3 V |
+| Sensing | Flow sensor | Hall-effect turbine / pulse flow meter (e.g. YF-S201 class) | 1 | Optional | Pulse to GPIO 4; set pulses/liter from datasheet |
 | Enclosure | Controller enclosure | Ventilated enclosure for ESP32, driver, buck converter, terminals, and optional valve driver | 1 | Recommended | Keep liquid plumbing physically separated from electronics |

@@ -264,6 +264,29 @@ bool WebServerController::applyTemperatureFromBody(
     return true;
 }
 
+void WebServerController::fillFlowSettingsJson(
+    const GlobalSettings& settings,
+    JsonObject doc
+) const {
+    doc["flow_sensor_enabled"] = settings.flowSensorEnabled;
+    doc["flow_pulses_per_liter"] = settings.flowPulsesPerLiter;
+}
+
+bool WebServerController::applyFlowFromBody(
+    JsonObjectConst body,
+    GlobalSettings& settings
+) const {
+    settings.flowSensorEnabled =
+        body["flow_sensor_enabled"] | settings.flowSensorEnabled;
+    settings.flowPulsesPerLiter =
+        body["flow_pulses_per_liter"] | settings.flowPulsesPerLiter;
+    if (!std::isfinite(settings.flowPulsesPerLiter) ||
+        settings.flowPulsesPerLiter <= 0.0f) {
+        return false;
+    }
+    return true;
+}
+
 void WebServerController::begin(
     PumpService& pump,
     ProfileRepository& profiles,
@@ -275,7 +298,8 @@ void WebServerController::begin(
     TmcDriverController& tmc,
     ReservoirSensor& reservoir,
     LoadCellSensor& loadCell,
-    TemperatureSensor& temperature
+    TemperatureSensor& temperature,
+    FlowSensor& flow
 ) {
     pump_ = &pump;
     profiles_ = &profiles;
@@ -288,6 +312,7 @@ void WebServerController::begin(
     reservoir_ = &reservoir;
     loadCell_ = &loadCell;
     temperature_ = &temperature;
+    flow_ = &flow;
 
     registerApiRoutes();
     registerStaticRoutes();
@@ -403,6 +428,17 @@ void WebServerController::registerApiRoutes() {
             doc["temperature_error"] = temperature_->lastError();
         } else {
             doc["temperature_error"] = nullptr;
+        }
+        doc["flow_sensor_enabled"] = flow_ != nullptr && flow_->isEnabled();
+        doc["flow_ready"] = flow_ != nullptr && flow_->isReady();
+        if (flow_ != nullptr && flow_->isEnabled()) {
+            doc["flow_ml_per_min"] = flow_->flowMlPerMin();
+            doc["flow_cumulative_ml"] = flow_->cumulativeMl();
+            doc["flow_pulse_count"] = flow_->pulseCount();
+        } else {
+            doc["flow_ml_per_min"] = nullptr;
+            doc["flow_cumulative_ml"] = nullptr;
+            doc["flow_pulse_count"] = nullptr;
         }
         doc["ip"] = WiFi.status() == WL_CONNECTED
             ? WiFi.localIP().toString()
@@ -931,6 +967,24 @@ void WebServerController::registerApiRoutes() {
         }
     );
 
+    server_.on("/api/flow/reset", HTTP_POST, [this](AsyncWebServerRequest* request) {
+        if (!requireAuth(request)) {
+            return;
+        }
+        if (flow_ == nullptr || !flow_->isEnabled()) {
+            sendError(request, 400, "flow_disabled");
+            return;
+        }
+        flow_->resetCumulative();
+        if (logger_ != nullptr) {
+            logger_->log("flow_reset");
+        }
+        JsonDocument doc;
+        doc["reset"] = true;
+        doc["flow_cumulative_ml"] = 0.0f;
+        sendJson(request, 200, doc);
+    });
+
     server_.on("/api/operation", HTTP_GET, [this](AsyncWebServerRequest* request) {
         if (!requireAuth(request)) {
             return;
@@ -968,6 +1022,7 @@ void WebServerController::registerApiRoutes() {
         fillReservoirSettingsJson(settings, doc.as<JsonObject>());
         fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
         fillTemperatureSettingsJson(settings, doc.as<JsonObject>());
+        fillFlowSettingsJson(settings, doc.as<JsonObject>());
         sendJson(request, 200, doc);
     });
 
@@ -1008,6 +1063,10 @@ void WebServerController::registerApiRoutes() {
             }
             if (!applyTemperatureFromBody(body.as<JsonObjectConst>(), settings)) {
                 sendError(request, 400, "temperature_settings_invalid");
+                return;
+            }
+            if (!applyFlowFromBody(body.as<JsonObjectConst>(), settings)) {
+                sendError(request, 400, "flow_settings_invalid");
                 return;
             }
             if (!settings_->save(settings)) {
@@ -1065,6 +1124,13 @@ void WebServerController::registerApiRoutes() {
                     logger_->log("temp_warning", fields);
                 }
             }
+            if (flow_ != nullptr) {
+                flow_->begin(PUMP_FLOW_PIN);
+                flow_->configure(
+                    settings.flowSensorEnabled,
+                    settings.flowPulsesPerLiter
+                );
+            }
             if (tmc_ != nullptr) {
                 TmcDriverConfig config;
                 config.enabled = settings.driverUartEnabled;
@@ -1089,6 +1155,7 @@ void WebServerController::registerApiRoutes() {
             fillReservoirSettingsJson(settings, doc.as<JsonObject>());
             fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
             fillTemperatureSettingsJson(settings, doc.as<JsonObject>());
+            fillFlowSettingsJson(settings, doc.as<JsonObject>());
             doc["driver_uart_ready"] = tmc_ != nullptr && tmc_->isReady();
             if (tmc_ != nullptr && !tmc_->lastError().isEmpty()) {
                 doc["driver_uart_error"] = tmc_->lastError();
@@ -1098,6 +1165,7 @@ void WebServerController::registerApiRoutes() {
             doc["load_cell_ready"] = loadCell_ != nullptr && loadCell_->isReady();
             doc["temperature_ready"] =
                 temperature_ != nullptr && temperature_->isReady();
+            doc["flow_ready"] = flow_ != nullptr && flow_->isReady();
             sendJson(request, 200, doc);
         }
     );
@@ -1138,6 +1206,7 @@ void WebServerController::registerApiRoutes() {
         fillReservoirSettingsJson(settings, settingsObj);
         fillLoadCellSettingsJson(settings, settingsObj);
         fillTemperatureSettingsJson(settings, settingsObj);
+        fillFlowSettingsJson(settings, settingsObj);
         profiles_->exportToJson(doc);
         sendJson(request, 200, doc);
     });
@@ -1191,6 +1260,10 @@ void WebServerController::registerApiRoutes() {
                     sendError(request, 400, "temperature_settings_invalid");
                     return;
                 }
+                if (!applyFlowFromBody(settingsObj, settings)) {
+                    sendError(request, 400, "flow_settings_invalid");
+                    return;
+                }
                 settings_->save(settings);
                 logger_->setEnabled(settings.loggingEnabled);
                 if (reservoir_ != nullptr) {
@@ -1219,6 +1292,13 @@ void WebServerController::registerApiRoutes() {
                         settings.temperatureSensorEnabled,
                         settings.temperatureWarnLowC,
                         settings.temperatureWarnHighC
+                    );
+                }
+                if (flow_ != nullptr) {
+                    flow_->begin(PUMP_FLOW_PIN);
+                    flow_->configure(
+                        settings.flowSensorEnabled,
+                        settings.flowPulsesPerLiter
                     );
                 }
                 if (tmc_ != nullptr) {

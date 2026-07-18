@@ -36,6 +36,9 @@
 #ifndef PUMP_TEMP_PIN
 #define PUMP_TEMP_PIN 23
 #endif
+#ifndef PUMP_FLOW_PIN
+#define PUMP_FLOW_PIN 4
+#endif
 
 namespace Config {
 constexpr const char* kDeviceName = "Fluid Dispensing Controller";
@@ -63,4 +66,5 @@ constexpr float kDefaultLoadCellScale = 1.0f;
 constexpr float kDefaultFluidDensityGPerMl = 1.0f;
 constexpr float kDefaultTempWarnLowC = 5.0f;
 constexpr float kDefaultTempWarnHighC = 40.0f;
+constexpr float kDefaultFlowPulsesPerLiter = 450.0f;
 }  // namespace Config

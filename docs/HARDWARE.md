@@ -134,3 +134,22 @@ Usage:
 - Enable in Diagnostics; optional warn-low / warn-high thresholds (°C)
 - Status shows live °C; threshold crossings log `temp_threshold` (warn only, no fault)
 - Absent sensor does not brick boot (`temp_no_device` / `temp_warning`)
+
+## Flow sensor (optional)
+
+Default pin: **GPIO 4** (`PUMP_FLOW_PIN`), active-low pulse with internal pull-up.
+
+Recommended: hall-effect turbine flow meter with open-collector/NPN pulse output
+(common YF-S201-class sensors; set pulses-per-liter from the datasheet K-factor).
+
+Wiring:
+
+- Pulse → GPIO 4, GND shared; supply the sensor at its rated voltage (often 5 V)
+  with level-safe signaling to the ESP32
+
+Usage:
+
+- Enable in Diagnostics and set pulses/liter
+- Status shows mL/min and cumulative mL; **Reset cumulative** clears the session
+  total (`POST /api/flow/reset`)
+- Does not alter dispense control yet (closed-loop is #20)

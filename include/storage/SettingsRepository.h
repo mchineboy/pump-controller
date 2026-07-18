@@ -26,6 +26,8 @@ struct GlobalSettings {
     bool temperatureSensorEnabled = false;
     float temperatureWarnLowC = 5.0f;
     float temperatureWarnHighC = 40.0f;
+    bool flowSensorEnabled = false;
+    float flowPulsesPerLiter = 450.0f;
 };
 
 class SettingsRepository {

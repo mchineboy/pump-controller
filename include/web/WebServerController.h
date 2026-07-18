@@ -7,6 +7,7 @@
 #include "motor/TmcDriverController.h"
 #include "pump/PumpService.h"
 #include "safety/SafetyController.h"
+#include "sensors/FlowSensor.h"
 #include "sensors/LoadCellSensor.h"
 #include "sensors/ReservoirSensor.h"
 #include "sensors/TemperatureSensor.h"
@@ -27,7 +28,8 @@ public:
         TmcDriverController& tmc,
         ReservoirSensor& reservoir,
         LoadCellSensor& loadCell,
-        TemperatureSensor& temperature
+        TemperatureSensor& temperature,
+        FlowSensor& flow
     );
 
     void update();
@@ -50,6 +52,7 @@ private:
         const GlobalSettings& settings,
         JsonObject doc
     ) const;
+    void fillFlowSettingsJson(const GlobalSettings& settings, JsonObject doc) const;
     bool applyTmcFromBody(JsonObjectConst body, GlobalSettings& settings) const;
     bool applyReservoirFromBody(
         JsonObjectConst body,
@@ -63,6 +66,7 @@ private:
         JsonObjectConst body,
         GlobalSettings& settings
     ) const;
+    bool applyFlowFromBody(JsonObjectConst body, GlobalSettings& settings) const;
     void persistLoadCellCalibration();
 
     AsyncWebServer server_{80};
@@ -79,6 +83,7 @@ private:
     ReservoirSensor* reservoir_ = nullptr;
     LoadCellSensor* loadCell_ = nullptr;
     TemperatureSensor* temperature_ = nullptr;
+    FlowSensor* flow_ = nullptr;
 
     SystemState lastBroadcastState_ = SystemState::Booting;
     uint32_t lastProgressBroadcastMs_ = 0;

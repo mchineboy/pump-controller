@@ -151,6 +151,10 @@ export function calibrateLoadCell(knownGrams) {
   });
 }
 
+export function resetFlowCumulative() {
+  return requestJson("/api/flow/reset", { method: "POST" });
+}
+
 export function exportConfig() {
   return requestJson("/api/config/export");
 }

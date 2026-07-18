@@ -6,6 +6,7 @@ import {
   getSettings,
   getStatus,
   injectDriverFault,
+  resetFlowCumulative,
   tareLoadCell,
   updateSettings
 } from "./api.js";
@@ -37,6 +38,9 @@ const tempEn = document.getElementById("temp-en");
 const tempLo = document.getElementById("temp-lo");
 const tempHi = document.getElementById("temp-hi");
 const tempLive = document.getElementById("temp-live");
+const flowEn = document.getElementById("flow-en");
+const flowPpl = document.getElementById("flow-ppl");
+const flowLive = document.getElementById("flow-live");
 const eventList = document.getElementById("event-list");
 
 function renderEstop(status) {
@@ -112,12 +116,27 @@ function renderTemperature(status) {
     (status.temperature_error ? ` · ${status.temperature_error}` : "");
 }
 
+function renderFlow(status) {
+  if (!status.flow_sensor_enabled) {
+    flowLive.textContent = "Flow: disabled";
+    return;
+  }
+  const rate = status.flow_ml_per_min == null
+    ? "—"
+    : `${Number(status.flow_ml_per_min).toFixed(1)} mL/min`;
+  const cum = status.flow_cumulative_ml == null
+    ? "—"
+    : `${Number(status.flow_cumulative_ml).toFixed(1)} mL`;
+  flowLive.textContent = `Flow: ${rate} · cumulative ${cum}`;
+}
+
 function renderStatus(status) {
   renderEstop(status);
   renderTmc(status);
   renderReservoir(status);
   renderLoadCell(status);
   renderTemperature(status);
+  renderFlow(status);
 }
 
 async function loadSettings() {
@@ -140,6 +159,8 @@ async function loadSettings() {
   tempEn.checked = settings.temperature_sensor_enabled;
   tempLo.value = settings.temperature_warn_low_c ?? 5;
   tempHi.value = settings.temperature_warn_high_c ?? 40;
+  flowEn.checked = settings.flow_sensor_enabled;
+  flowPpl.value = settings.flow_pulses_per_liter ?? 450;
 }
 
 async function loadEvents() {
@@ -178,7 +199,9 @@ document.getElementById("settings-form").addEventListener("submit", async (event
       fluid_density_g_per_ml: Number(fluidDensity.value),
       temperature_sensor_enabled: tempEn.checked,
       temperature_warn_low_c: Number(tempLo.value),
-      temperature_warn_high_c: Number(tempHi.value)
+      temperature_warn_high_c: Number(tempHi.value),
+      flow_sensor_enabled: flowEn.checked,
+      flow_pulses_per_liter: Number(flowPpl.value)
     });
     let message = "Settings saved.";
     if (saved.driver_uart_enabled && !saved.driver_uart_ready) {
@@ -189,6 +212,16 @@ document.getElementById("settings-form").addEventListener("submit", async (event
       message = "Settings saved. Temperature sensor not ready (check wiring).";
     }
     settingsStatus.textContent = message;
+    renderStatus(await getStatus());
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+document.getElementById("flow-reset-btn").addEventListener("click", async () => {
+  try {
+    await resetFlowCumulative();
+    settingsStatus.textContent = "Flow cumulative reset.";
     renderStatus(await getStatus());
   } catch (error) {
     alert(error.message);
