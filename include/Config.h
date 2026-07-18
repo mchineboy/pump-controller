@@ -33,6 +33,9 @@
 #ifndef PUMP_LOADCELL_SCK_PIN
 #define PUMP_LOADCELL_SCK_PIN 18
 #endif
+#ifndef PUMP_TEMP_PIN
+#define PUMP_TEMP_PIN 23
+#endif
 
 namespace Config {
 constexpr const char* kDeviceName = "Fluid Dispensing Controller";
@@ -58,4 +61,6 @@ constexpr uint16_t kDefaultTmcHoldCurrentMa = 400;
 constexpr uint16_t kDefaultTmcMicrosteps = 16;
 constexpr float kDefaultLoadCellScale = 1.0f;
 constexpr float kDefaultFluidDensityGPerMl = 1.0f;
+constexpr float kDefaultTempWarnLowC = 5.0f;
+constexpr float kDefaultTempWarnHighC = 40.0f;
 }  // namespace Config

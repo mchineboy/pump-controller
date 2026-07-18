@@ -25,4 +25,5 @@ Puschmann’s NEMA 17 peristaltic pump and this ESP32 controller.
 | Safety | Emergency stop switch | Normally-open switch or latching ESTOP that connects GPIO 32 to GND when asserted | 1 | Optional | Enable in Diagnostics; see [HARDWARE.md](HARDWARE.md) |
 | Sensing | Load cell | Strain-gauge load cell, typically 1–5 kg capacity, matched mount for vessel | 1 | Optional | Phase 4 verification; pair with HX711 |
 | Sensing | HX711 amplifier | HX711 load-cell ADC module, ESP32-compatible logic levels | 1 | Optional | DT GPIO 19, SCK GPIO 18 by default |
+| Sensing | Temperature sensor | DS18B20 1-Wire digital thermometer | 1 | Optional | GPIO 23 with 4.7 kΩ pull-up to 3.3 V |
 | Enclosure | Controller enclosure | Ventilated enclosure for ESP32, driver, buck converter, terminals, and optional valve driver | 1 | Recommended | Keep liquid plumbing physically separated from electronics |

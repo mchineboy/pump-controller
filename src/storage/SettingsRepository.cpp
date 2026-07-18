@@ -27,6 +27,9 @@ bool SettingsRepository::begin() {
     settings_.loadCellScale = Config::kDefaultLoadCellScale;
     settings_.loadCellOffset = 0;
     settings_.fluidDensityGPerMl = Config::kDefaultFluidDensityGPerMl;
+    settings_.temperatureSensorEnabled = false;
+    settings_.temperatureWarnLowC = Config::kDefaultTempWarnLowC;
+    settings_.temperatureWarnHighC = Config::kDefaultTempWarnHighC;
 
     if (!prefs.begin(kNamespace, false)) {
         return true;
@@ -62,6 +65,12 @@ bool SettingsRepository::begin() {
     settings_.loadCellOffset = prefs.getInt("lc_offset", settings_.loadCellOffset);
     settings_.fluidDensityGPerMl =
         prefs.getFloat("fluid_density", settings_.fluidDensityGPerMl);
+    settings_.temperatureSensorEnabled =
+        prefs.getBool("temp_en", settings_.temperatureSensorEnabled);
+    settings_.temperatureWarnLowC =
+        prefs.getFloat("temp_lo", settings_.temperatureWarnLowC);
+    settings_.temperatureWarnHighC =
+        prefs.getFloat("temp_hi", settings_.temperatureWarnHighC);
     prefs.end();
 
     // Replace earlier project brand names with the generic product name.
@@ -98,6 +107,9 @@ bool SettingsRepository::save(const GlobalSettings& settings) {
     prefs.putFloat("lc_scale", settings_.loadCellScale);
     prefs.putInt("lc_offset", settings_.loadCellOffset);
     prefs.putFloat("fluid_density", settings_.fluidDensityGPerMl);
+    prefs.putBool("temp_en", settings_.temperatureSensorEnabled);
+    prefs.putFloat("temp_lo", settings_.temperatureWarnLowC);
+    prefs.putFloat("temp_hi", settings_.temperatureWarnHighC);
     prefs.end();
     return true;
 }

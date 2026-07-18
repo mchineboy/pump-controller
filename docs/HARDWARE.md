@@ -119,3 +119,18 @@ Usage:
 - Status shows grams and optional mL via fluid density (g/mL)
 - Miswire/timeout does not brick boot; logs `loadcell_warning`
 - Does not alter dispense control yet (closed-loop is a later Phase 4 issue)
+
+## Temperature sensor (optional)
+
+Default pin: **GPIO 23** (`PUMP_TEMP_PIN`), 1-Wire **DS18B20**.
+
+Wiring:
+
+- DS18B20 data → GPIO 23 with **4.7 kΩ** pull-up to 3.3 V
+- VDD to 3.3 V (or parasite power per datasheet), GND to GND
+
+Usage:
+
+- Enable in Diagnostics; optional warn-low / warn-high thresholds (°C)
+- Status shows live °C; threshold crossings log `temp_threshold` (warn only, no fault)
+- Absent sensor does not brick boot (`temp_no_device` / `temp_warning`)
