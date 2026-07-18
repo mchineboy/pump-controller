@@ -5,9 +5,10 @@
 #include "motor/StepperController.h"
 #include "valve/ValveController.h"
 
-constexpr size_t kMaxPumpPaths = 2;
+constexpr size_t kMaxPumpPaths = 3;
 constexpr const char* kDefaultPumpId = "pump_1";
 constexpr const char* kPump2Id = "pump_2";
+constexpr const char* kPump3Id = "pump_3";
 
 struct PumpPinConfig {
     uint8_t stepPin = 255;
@@ -26,7 +27,17 @@ struct PumpPath {
 };
 
 inline bool isValidPumpId(const String& id) {
-    return id == kDefaultPumpId || id == kPump2Id;
+    return id == kDefaultPumpId || id == kPump2Id || id == kPump3Id;
+}
+
+inline uint8_t pumpIdRequiredCount(const String& id) {
+    if (id == kPump3Id) {
+        return 3;
+    }
+    if (id == kPump2Id) {
+        return 2;
+    }
+    return 1;
 }
 
 inline String normalizePumpId(const String& id) {

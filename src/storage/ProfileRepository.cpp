@@ -113,7 +113,8 @@ bool ProfileRepository::profileFromJson(
     profile = makeDefault(id, obj["name"] | id);
     profile.name = obj["name"] | id;
     profile.pumpId = obj["pump_id"] | "pump_1";
-    if (profile.pumpId != "pump_1" && profile.pumpId != "pump_2") {
+    if (profile.pumpId != "pump_1" && profile.pumpId != "pump_2" &&
+        profile.pumpId != "pump_3") {
         profile.pumpId = "pump_1";
     }
     profile.enabled = obj["enabled"] | true;

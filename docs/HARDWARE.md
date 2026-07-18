@@ -168,22 +168,24 @@ Source: `auto` (load cell if ready, else flow), `load_cell`, or `flow`. Density
 (`volume_verification_failed`). Sensor loss during feedback modes raises
 `feedback_sensor_lost`.
 
-## Multi-pump / second fluid path (optional)
+## Multi-pump / additional fluid paths (optional)
 
 Default is **one path** (`pump_count = 1`), identical to prior single-pump builds.
 
-Enable **Pump count = 2** in Diagnostics to activate a second STEP/DIR/ENABLE
-path. Bind each fluid profile to `pump_1` or `pump_2` on the Profiles page.
+Enable **Pump count = 2 or 3** in Diagnostics to activate additional STEP/DIR/ENABLE
+paths. Bind each fluid profile to `pump_1`, `pump_2`, or `pump_3` on the Profiles page.
 
 | Path | STEP | DIR | ENABLE | Optional valve | TMC UART address |
 |------|------|-----|--------|----------------|------------------|
 | `pump_1` | GPIO 26 | GPIO 27 | GPIO 25 | GPIO 33 | `0b00` (MS1/MS2 low) |
-| `pump_2` | GPIO 5 | GPIO 13 | GPIO 14 | GPIO 21 | `0b01` (strap MS1/MS2) |
+| `pump_2` | GPIO 5 | GPIO 13 | GPIO 14 | GPIO 21 | `0b01` |
+| `pump_3` | GPIO 22 | GPIO 15 | GPIO 2 | GPIO 12 | `0b10` |
 
-Both TMC2209 drivers share the same UART pins (RX 16 / TX 17); address them via
-MS1/MS2. Motion is **sequential**: only one path runs at a time (global busy
-guard). ESTOP stops both paths. Concurrent multi-axis STEP is out of scope for
-this cut; PSU current budget should assume one NEMA 17 at a time unless you
-validate otherwise.
+All TMC2209 drivers share UART pins RX 16 / TX 17; address via MS1/MS2.
+Motion is **sequential**: only one path runs at a time. ESTOP stops all paths.
+
+**Strapping:** GPIO 15 (pump 3 DIR) and GPIO 12 (pump 3 valve) are ESP32 boot
+strapping pins. Keep external loads from forcing bad levels at reset; firmware
+drives safe idle levels after boot.
 
 See [WIRING.md](WIRING.md) pin summary for the full map.

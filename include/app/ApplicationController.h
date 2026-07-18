@@ -31,9 +31,11 @@ private:
 
     StepperController stepper_;
     StepperController stepper2_;
+    StepperController stepper3_;
     TmcDriverController tmc_;
     ValveController valve_;
     ValveController valve2_;
+    ValveController valve3_;
     ReservoirSensor reservoir_;
     LoadCellSensor loadCell_;
     TemperatureSensor temperature_;

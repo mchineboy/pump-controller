@@ -35,7 +35,7 @@ Tracked on GitHub milestone **Phase 4**, in design-doc order:
 2. Temperature monitoring — done
 3. Flow sensor — done
 4. Closed-loop dispensing — done
-5. Multi-pump support — done (two paths, sequential motion; `pump_count` default 1)
+5. Multi-pump support — done (up to three paths, sequential motion; `pump_count` default 1)
 6. Automated mixing jobs
 7. Recipe engine (use-case agnostic)
 
