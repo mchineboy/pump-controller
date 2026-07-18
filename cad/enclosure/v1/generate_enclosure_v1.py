@@ -2,6 +2,8 @@
 """
 v1 — Monolithic dry-side electronics enclosure (single box).
 
+Material: PETG (see cad/enclosure/README.md).
+
 Simple one-piece base + lid. Prefer v2 (sectional) for multi-pump builds
 and parts that must stay ≤ 200 mm.
 

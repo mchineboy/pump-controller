@@ -14,6 +14,10 @@ CAD reference.
 | `enclosure_monolithic.FCStd` | FreeCAD document |
 | `generate_enclosure_v1.py` | Parametric generator |
 
+## Material
+
+**PETG** — required for print (see [parent README](../README.md#material)).
+
 ## Envelope
 
 120 × 90 × ~45 mm (base 42 + lid 3). Wall / floor 2.5 mm.

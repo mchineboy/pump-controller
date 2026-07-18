@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuration — Fluid Dispensing Controller</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <p class="brand">Fluid Dispensing Controller</p>
+    <nav>
+      <a href="/">Dispense</a>
+      <a href="/calibration.html">Calibration</a>
+      <a href="/profiles.html">Profiles</a>
+      <a href="/configuration.html" aria-current="page">Configuration</a>
+      <a href="/diagnostics.html">Diagnostics</a>
+      <a href="/hardware.html">Hardware</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h1>Configuration</h1>
+      <p class="meta">
+        Set up the installed pumps, safety behavior, and measurement hardware.
+        For live readings and fault investigation, use <a href="/diagnostics.html">Diagnostics</a>.
+      </p>
+    </section>
+
+    <form id="settings-form" class="settings-form">
+      <section class="panel">
+        <h2>Device</h2>
+        <label>
+          Name shown in the interface
+          <input id="device-name" type="text" required>
+        </label>
+        <label class="checkbox">
+          <input id="web-auth" type="checkbox">
+          Require the local admin password
+        </label>
+        <p class="field-help">Uses the username and password compiled from <code>secrets.h</code>.</p>
+        <label class="checkbox">
+          <input id="logging" type="checkbox">
+          Keep an event log for troubleshooting
+        </label>
+      </section>
+
+      <section class="panel">
+        <h2>Pumps</h2>
+        <label>
+          Number of installed pumps
+          <select id="pump-count">
+            <option value="1">1 pump (default)</option>
+            <option value="2">2 pumps</option>
+            <option value="3">3 pumps</option>
+          </select>
+        </label>
+        <p id="pump-effect" class="effect-summary" role="status"></p>
+        <label class="checkbox">
+          <input id="valve-hw" type="checkbox">
+          Pump 1 has a shutoff valve
+        </label>
+        <label class="checkbox" data-pump-min="2">
+          <input id="valve2-hw" type="checkbox">
+          Pump 2 has a shutoff valve
+        </label>
+        <label class="checkbox" data-pump-min="3">
+          <input id="valve3-hw" type="checkbox">
+          Pump 3 has a shutoff valve
+        </label>
+        <details class="inline-help">
+          <summary>Wiring and behavior</summary>
+          <p>
+            Profiles select which pump they use. Only one pump moves at a time.
+            Pump 2 uses STEP/DIR/ENABLE 5/13/14; Pump 3 uses 22/15/2.
+            See <a href="/hardware.html">Hardware</a> for the complete map.
+          </p>
+        </details>
+      </section>
+
+      <section class="panel">
+        <h2>Safety</h2>
+        <label class="checkbox">
+          <input id="estop-en" type="checkbox">
+          Use the wired emergency-stop input
+        </label>
+        <p class="field-help">When asserted, all pumps stop, valves close, and the system enters a fault.</p>
+
+        <fieldset>
+          <legend>Empty-container protection</legend>
+          <label class="checkbox">
+            <input id="reservoir-en" type="checkbox">
+            Use an empty-container sensor
+          </label>
+          <label>
+            When the source container is empty
+            <select id="reservoir-policy">
+              <option value="warn">Show a warning only</option>
+              <option value="block">Do not start a new dispense or calibration</option>
+              <option value="fault">Stop an active operation and enter a fault</option>
+            </select>
+          </label>
+          <details class="advanced-settings">
+            <summary>Advanced wiring</summary>
+            <label class="checkbox">
+              <input id="reservoir-empty-low" type="checkbox">
+              Sensor connects the input to ground when empty
+            </label>
+            <p class="field-help">GPIO 34 requires an external pull-up. Change this only if your sensor uses the opposite polarity.</p>
+          </details>
+        </fieldset>
+      </section>
+
+      <section class="panel">
+        <h2>Volume accuracy</h2>
+        <label>
+          How should delivered volume be checked?
+          <select id="fb-mode">
+            <option value="open_loop">Use calibrated motor steps only</option>
+            <option value="verify_after">Check the result after dispensing</option>
+            <option value="stop_on_feedback">Stop when the measured target is reached</option>
+          </select>
+        </label>
+        <p id="feedback-effect" class="effect-summary" role="status"></p>
+        <div id="feedback-options">
+          <label>
+            Measurement source
+            <select id="fb-source">
+              <option value="auto">Choose automatically (scale first, then flow)</option>
+              <option value="load_cell">Scale / load cell</option>
+              <option value="flow">Flow sensor</option>
+            </select>
+          </label>
+          <label>
+            Acceptable difference from target (%)
+            <input id="fb-tol" type="number" min="0" max="50" step="0.1" value="5">
+          </label>
+          <label>
+            If the result is outside tolerance
+            <select id="fb-on-miss">
+              <option value="warn">Record a warning; keep the system available</option>
+              <option value="fault">Enter a fault; require acknowledgement</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Measurement hardware</h2>
+        <fieldset>
+          <legend>Scale / load cell</legend>
+          <label class="checkbox">
+            <input id="loadcell-en" type="checkbox">
+            Use a scale to measure dispensed fluid
+          </label>
+          <label>
+            Fluid density (g/mL)
+            <input id="fluid-density" type="number" min="0.1" max="5" step="0.01" value="1">
+          </label>
+          <p class="field-help">Density converts measured mass into volume. Water is approximately 1.00 g/mL.</p>
+          <details class="advanced-settings">
+            <summary>Calibrate the scale</summary>
+            <label>
+              Calibration mass (g)
+              <input id="loadcell-known-g" type="number" min="1" max="5000" step="0.1" value="100">
+            </label>
+            <div class="actions">
+              <button type="button" id="loadcell-tare-btn">Set current load to zero</button>
+              <button type="button" id="loadcell-cal-btn">Calibrate using this mass</button>
+            </div>
+          </details>
+        </fieldset>
+
+        <fieldset>
+          <legend>Flow sensor</legend>
+          <label class="checkbox">
+            <input id="flow-en" type="checkbox">
+            Use a pulse flow sensor to measure volume
+          </label>
+          <details class="advanced-settings">
+            <summary>Sensor calibration</summary>
+            <label>
+              Pulses per liter
+              <input id="flow-ppl" type="number" min="1" step="1" value="450">
+            </label>
+            <p class="field-help">Enter the K-factor from the sensor datasheet or your measured calibration.</p>
+          </details>
+        </fieldset>
+
+        <fieldset>
+          <legend>Temperature monitoring</legend>
+          <label class="checkbox">
+            <input id="temp-en" type="checkbox">
+            Monitor fluid or ambient temperature
+          </label>
+          <label>
+            Warn below (°C)
+            <input id="temp-lo" type="number" step="0.1" value="5">
+          </label>
+          <label>
+            Warn above (°C)
+            <input id="temp-hi" type="number" step="0.1" value="40">
+          </label>
+        </fieldset>
+      </section>
+
+      <section class="panel">
+        <details class="advanced-settings">
+          <summary><strong>Advanced motor-driver settings</strong></summary>
+          <p class="field-help">These settings affect TMC2209 electrical behavior. Leave them unchanged unless the driver is wired for shared UART configuration.</p>
+          <label class="checkbox">
+            <input id="driver-uart" type="checkbox">
+            Configure TMC2209 drivers over UART
+          </label>
+          <label>
+            Motor run current (mA)
+            <input id="tmc-run-ma" type="number" min="100" max="2000" step="50">
+          </label>
+          <label>
+            Motor hold current (mA)
+            <input id="tmc-hold-ma" type="number" min="0" max="2000" step="50">
+          </label>
+          <label>
+            Microsteps
+            <select id="tmc-microsteps">
+              <option value="8">8</option>
+              <option value="16">16</option>
+              <option value="32">32</option>
+              <option value="64">64</option>
+              <option value="128">128</option>
+              <option value="256">256</option>
+            </select>
+          </label>
+          <label class="checkbox">
+            <input id="tmc-stealth" type="checkbox">
+            Prefer quieter motor operation (StealthChop)
+          </label>
+          <details class="inline-help">
+            <summary>UART wiring details</summary>
+            <p>All drivers share RX/TX GPIO 16/17 and use addresses <code>0b00</code>, <code>0b01</code>, and <code>0b10</code>.</p>
+          </details>
+        </details>
+      </section>
+
+      <section class="panel save-panel">
+        <div class="actions">
+          <button type="submit" class="primary">Save configuration</button>
+        </div>
+        <p id="settings-status" class="meta" role="status"></p>
+      </section>
+    </form>
+
+    <section class="panel danger-zone">
+      <h2>Danger zone</h2>
+      <h3>Factory reset</h3>
+      <p>
+        Erases all pump profiles, calibrations, and hardware settings, then reboots.
+        This cannot be undone. Normal firmware and web-interface updates do not erase this data.
+      </p>
+      <label>
+        Type <code>FACTORY_RESET</code> to confirm
+        <input id="factory-confirm" type="text" autocomplete="off" placeholder="FACTORY_RESET">
+      </label>
+      <div class="actions">
+        <button type="button" id="factory-reset-btn" class="danger">Erase settings and restart</button>
+      </div>
+      <p id="factory-status" class="meta" role="status"></p>
+    </section>
+  </main>
+
+  <script type="module" src="/js/configuration.js"></script>
+</body>
+</html>

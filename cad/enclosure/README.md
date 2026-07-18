@@ -10,6 +10,18 @@ Two designs share this folder. Prefer **v2** for new builds.
 Generators write **only** into their own directory and do not delete the other
 version’s exports.
 
+## Material
+
+**Print in PETG** (both v1 and v2).
+
+| Material | Verdict |
+|----------|---------|
+| **PETG** | Required / recommended — heat near TMC2209 and buck, M3 heat-set inserts, toughness for sectional joints |
+| PLA | Avoid — softens near ~60 °C; poor near drivers and for inserts |
+| ABS / ASA | Acceptable if you already print them well; more warp/fume hassle than PETG for this box |
+
+Same filament family as the functional pump parts ([BOM](../../docs/BOM.md)).
+
 ## Regenerate
 
 ```bash

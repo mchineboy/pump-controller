@@ -63,10 +63,14 @@ printed by the generator at run time.
 
 Writes only into `cad/enclosure/v2/` — does not modify [v1](../v1/) exports.
 
+## Material
+
+**PETG** — required for print (see [parent README](../README.md#material)).
+
 ## Print / assembly notes
 
-- PETG recommended.
 - Install M3 heat-set inserts in base bosses; M3×8–12 mm lid screws.
+
 - Confirm barrel-jack panel diameter (`BARREL_D`).
 - Fit rubber grommets in endcap cable exits.
 - Revise `DRIVER_BAY_*` once the exact breakout board is chosen.

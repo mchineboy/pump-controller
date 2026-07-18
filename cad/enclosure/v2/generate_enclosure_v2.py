@@ -2,6 +2,8 @@
 """
 v2 — Sectional dry-side electronics enclosure (per-print ≤ 200 mm).
 
+Material: PETG (see cad/enclosure/README.md).
+
 Modules:
   controller  — breadboard + buck bay + barrel jack + USB + fan lid
   driver_x1   — one generic TMC/breakout bay
