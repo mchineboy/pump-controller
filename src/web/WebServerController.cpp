@@ -186,6 +186,8 @@ void WebServerController::registerApiRoutes() {
         }
         doc["motor_running"] = stepper_->isRunning();
         doc["valve_open"] = valve_->isOpen();
+        doc["estop_enabled"] = safety_->isEnabled();
+        doc["estop_active"] = safety_->isEmergencyStopActive();
         doc["ip"] = WiFi.status() == WL_CONNECTED
             ? WiFi.localIP().toString()
             : WiFi.softAPIP().toString();
@@ -698,10 +700,14 @@ void WebServerController::registerApiRoutes() {
                     true
                 );
             }
+            if (safety_ != nullptr) {
+                safety_->begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
+            }
             JsonDocument doc;
             doc["saved"] = true;
             doc["web_auth_enabled"] = settings.webAuthEnabled;
             doc["valve_hardware_present"] = settings.valveHardwarePresent;
+            doc["emergency_stop_enabled"] = settings.emergencyStopEnabled;
             sendJson(request, 200, doc);
         }
     );

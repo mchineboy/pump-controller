@@ -38,11 +38,16 @@
           <input id="valve-hw" type="checkbox">
           Valve hardware present (GPIO valve driver interface)
         </label>
+        <label class="checkbox">
+          <input id="estop-en" type="checkbox">
+          Emergency stop input enabled (GPIO 32, active low to GND)
+        </label>
         <div class="actions">
           <button type="submit">Save settings</button>
         </div>
       </form>
       <p id="settings-status" class="meta"></p>
+      <p id="estop-live" class="status-line">ESTOP: —</p>
     </section>
 
     <section class="panel">

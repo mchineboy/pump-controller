@@ -2,15 +2,27 @@ import {
   clearEventLog,
   getEventLog,
   getSettings,
+  getStatus,
   updateSettings
 } from "./api.js";
+import { connectStatusStream } from "./status-stream.js";
 
 const deviceName = document.getElementById("device-name");
 const logging = document.getElementById("logging");
 const webAuth = document.getElementById("web-auth");
 const valveHw = document.getElementById("valve-hw");
+const estopEn = document.getElementById("estop-en");
 const settingsStatus = document.getElementById("settings-status");
+const estopLive = document.getElementById("estop-live");
 const eventList = document.getElementById("event-list");
+
+function renderEstop(status) {
+  const enabled = status.estop_enabled ? "enabled" : "disabled";
+  const active = status.estop_active ? "ASSERTED" : "clear";
+  estopLive.textContent =
+    `ESTOP: ${enabled} · input ${active}` +
+    (status.fault ? ` · fault: ${status.fault}` : "");
+}
 
 async function loadSettings() {
   const settings = await getSettings();
@@ -18,6 +30,7 @@ async function loadSettings() {
   logging.checked = settings.logging_enabled;
   webAuth.checked = settings.web_auth_enabled;
   valveHw.checked = settings.valve_hardware_present;
+  estopEn.checked = settings.emergency_stop_enabled;
 }
 
 async function loadEvents() {
@@ -42,9 +55,11 @@ document.getElementById("settings-form").addEventListener("submit", async (event
       device_name: deviceName.value,
       logging_enabled: logging.checked,
       web_auth_enabled: webAuth.checked,
-      valve_hardware_present: valveHw.checked
+      valve_hardware_present: valveHw.checked,
+      emergency_stop_enabled: estopEn.checked
     });
     settingsStatus.textContent = "Settings saved.";
+    renderEstop(await getStatus());
   } catch (error) {
     alert(error.message);
   }
@@ -66,4 +81,12 @@ document.getElementById("clear-log-btn").addEventListener("click", async () => {
   }
 });
 
-Promise.all([loadSettings(), loadEvents()]).catch((error) => alert(error.message));
+connectStatusStream({
+  onStatus: renderEstop,
+  onOperation: () => {
+    getStatus().then(renderEstop).catch(() => {});
+  }
+});
+
+Promise.all([loadSettings(), loadEvents(), getStatus().then(renderEstop)])
+  .catch((error) => alert(error.message));
