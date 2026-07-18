@@ -146,10 +146,15 @@ public:
         LoadCellSensor& loadCell,
         FlowSensor& flow
     );
-    /** Register optional second path hardware (pins begun by caller). */
+    /** Register optional additional path hardware (pins begun by caller). */
     void configureSecondPath(StepperController& stepper, ValveController& valve);
+    void configureThirdPath(StepperController& stepper, ValveController& valve);
     void setPumpCount(uint8_t count);
-    void applyValveHardware(bool pump1Present, bool pump2Present);
+    void applyValveHardware(
+        bool pump1Present,
+        bool pump2Present,
+        bool pump3Present
+    );
 
     void update();
     void setReservoirEmptyPolicy(ReservoirEmptyPolicy policy);

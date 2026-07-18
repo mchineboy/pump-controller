@@ -19,6 +19,7 @@ const webAuth = document.getElementById("web-auth");
 const valveHw = document.getElementById("valve-hw");
 const pumpCount = document.getElementById("pump-count");
 const valve2Hw = document.getElementById("valve2-hw");
+const valve3Hw = document.getElementById("valve3-hw");
 const estopEn = document.getElementById("estop-en");
 const driverUart = document.getElementById("driver-uart");
 const tmcRunMa = document.getElementById("tmc-run-ma");
@@ -154,6 +155,7 @@ async function loadSettings() {
   valveHw.checked = settings.valve_hardware_present;
   pumpCount.value = String(settings.pump_count ?? 1);
   valve2Hw.checked = settings.pump2_valve_hardware_present;
+  valve3Hw.checked = settings.pump3_valve_hardware_present;
   estopEn.checked = settings.emergency_stop_enabled;
   driverUart.checked = settings.driver_uart_enabled;
   tmcRunMa.value = settings.driver_run_current_ma;
@@ -201,6 +203,7 @@ document.getElementById("settings-form").addEventListener("submit", async (event
       valve_hardware_present: valveHw.checked,
       pump_count: Number(pumpCount.value),
       pump2_valve_hardware_present: valve2Hw.checked,
+      pump3_valve_hardware_present: valve3Hw.checked,
       emergency_stop_enabled: estopEn.checked,
       driver_uart_enabled: driverUart.checked,
       driver_run_current_ma: Number(tmcRunMa.value),

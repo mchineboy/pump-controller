@@ -45,6 +45,13 @@ void ApplicationController::beginSafeOutputs() {
     digitalWrite(PUMP2_STEP_PIN, LOW);
     digitalWrite(PUMP2_DIR_PIN, LOW);
     digitalWrite(PUMP2_ENABLE_PIN, HIGH);
+
+    pinMode(PUMP3_STEP_PIN, OUTPUT);
+    pinMode(PUMP3_DIR_PIN, OUTPUT);
+    pinMode(PUMP3_ENABLE_PIN, OUTPUT);
+    digitalWrite(PUMP3_STEP_PIN, LOW);
+    digitalWrite(PUMP3_DIR_PIN, LOW);
+    digitalWrite(PUMP3_ENABLE_PIN, HIGH);
 }
 
 void ApplicationController::beginNetwork() {
@@ -167,6 +174,20 @@ void ApplicationController::applyTmcSettings(const GlobalSettings& settings) {
                 Serial.println("TMC2209 UART configured (pump_2)");
             }
         }
+        if (settings.pumpCount >= 3) {
+            TmcDriverConfig pump3 = config;
+            pump3.address = PUMP3_TMC_ADDRESS;
+            if (!tmc_.applyToAddress(PUMP3_TMC_ADDRESS, pump3)) {
+                Serial.print("TMC2209 UART pump_3 apply failed: ");
+                Serial.println(tmc_.lastError());
+                JsonDocument fields;
+                fields["error"] = tmc_.lastError();
+                fields["pump_id"] = "pump_3";
+                logger_.log("tmc_uart_warning", fields);
+            } else {
+                Serial.println("TMC2209 UART configured (pump_3)");
+            }
+        }
     }
 }
 
@@ -256,10 +277,12 @@ void ApplicationController::begin() {
     const GlobalSettings settings = settings_.get();
     stepper_.begin(PUMP_STEP_PIN, PUMP_DIR_PIN, PUMP_ENABLE_PIN);
     stepper2_.begin(PUMP2_STEP_PIN, PUMP2_DIR_PIN, PUMP2_ENABLE_PIN);
+    stepper3_.begin(PUMP3_STEP_PIN, PUMP3_DIR_PIN, PUMP3_ENABLE_PIN);
     tmc_.begin(PUMP_TMC_RX_PIN, PUMP_TMC_TX_PIN);
     applyTmcSettings(settings);
     valve_.begin(PUMP_VALVE_PIN, settings.valveHardwarePresent, true);
     valve2_.begin(PUMP2_VALVE_PIN, settings.pump2ValveHardwarePresent, true);
+    valve3_.begin(PUMP3_VALVE_PIN, settings.pump3ValveHardwarePresent, true);
     safety_.begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
 
     pump_.begin(
@@ -274,6 +297,7 @@ void ApplicationController::begin() {
         flow_
     );
     pump_.configureSecondPath(stepper2_, valve2_);
+    pump_.configureThirdPath(stepper3_, valve3_);
     pump_.setPumpCount(settings.pumpCount);
     applyReservoirSettings(settings);
     applyLoadCellSettings(settings);

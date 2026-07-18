@@ -17,6 +17,7 @@ void SettingsRepository::loadDefaults() {
     settings_.valveHardwarePresent = false;
     settings_.pumpCount = Config::kDefaultPumpCount;
     settings_.pump2ValveHardwarePresent = false;
+    settings_.pump3ValveHardwarePresent = false;
     settings_.driverUartEnabled = false;
     settings_.driverRunCurrentMa = Config::kDefaultTmcRunCurrentMa;
     settings_.driverHoldCurrentMa = Config::kDefaultTmcHoldCurrentMa;
@@ -79,6 +80,8 @@ bool SettingsRepository::begin() {
     }
     settings_.pump2ValveHardwarePresent =
         prefs.getBool("valve2_hw", settings_.pump2ValveHardwarePresent);
+    settings_.pump3ValveHardwarePresent =
+        prefs.getBool("valve3_hw", settings_.pump3ValveHardwarePresent);
     settings_.reservoirSensorEnabled =
         prefs.getBool("res_en", settings_.reservoirSensorEnabled);
     settings_.reservoirEmptyActiveLow =
@@ -138,6 +141,7 @@ bool SettingsRepository::save(const GlobalSettings& settings) {
     prefs.putBool("valve_hw", settings_.valveHardwarePresent);
     prefs.putUChar("pump_count", settings_.pumpCount);
     prefs.putBool("valve2_hw", settings_.pump2ValveHardwarePresent);
+    prefs.putBool("valve3_hw", settings_.pump3ValveHardwarePresent);
     prefs.putBool("res_en", settings_.reservoirSensorEnabled);
     prefs.putBool("res_empty_lo", settings_.reservoirEmptyActiveLow);
     prefs.putString("res_policy", settings_.reservoirEmptyPolicy);

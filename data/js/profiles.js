@@ -32,14 +32,29 @@ const configStatus = document.getElementById("config-status");
 async function refreshValveHardwareNote() {
   const settings = await getSettings();
   const count = settings.pump_count ?? 1;
+  Array.from(pumpIdSelect.options).forEach((option) => {
+    const required =
+      option.value === "pump_3" ? 3 : option.value === "pump_2" ? 2 : 1;
+    option.disabled = required > count;
+    option.hidden = required > count;
+  });
+  if (pumpIdRequiredDisabled(pumpIdSelect.value, count)) {
+    pumpIdSelect.value = "pump_1";
+  }
   pumpIdSelect.disabled = count < 2;
   pumpCountNote.textContent =
     count < 2
-      ? "Second pump path is disabled in Diagnostics (pump count = 1). Profiles stay on Pump 1."
-      : "Pump count = 2. Bind this profile to Pump 1 or Pump 2. Only one path moves at a time.";
+      ? "Second/third pump paths are disabled in Diagnostics (pump count = 1). Profiles stay on Pump 1."
+      : `Pump count = ${count}. Bind this profile to an enabled path. Only one path moves at a time.`;
   valveHwNote.textContent = settings.valve_hardware_present
     ? "Valve hardware is enabled in Diagnostics settings. Timing below applies when this profile uses the valve."
     : "Valve hardware is currently disabled in Diagnostics settings. Enable it there before profile valve timing takes effect.";
+}
+
+function pumpIdRequiredDisabled(pumpId, count) {
+  if (pumpId === "pump_3") return count < 3;
+  if (pumpId === "pump_2") return count < 2;
+  return false;
 }
 
 async function loadProfile() {

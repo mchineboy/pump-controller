@@ -598,13 +598,15 @@ void WebServerController::registerApiRoutes() {
             }
             if (body["pump_id"].is<const char*>()) {
                 const String pumpId = body["pump_id"].as<const char*>();
-                if (pumpId != "pump_1" && pumpId != "pump_2") {
+                if (!isValidPumpId(pumpId)) {
                     sendError(request, 400, "invalid_pump_id");
                     return;
                 }
-                if (pumpId == "pump_2" &&
-                    (settings_ == nullptr || settings_->get().pumpCount < 2)) {
-                    sendError(request, 400, "pump_2_disabled");
+                const uint8_t required = pumpIdRequiredCount(pumpId);
+                const uint8_t count =
+                    settings_ != nullptr ? settings_->get().pumpCount : 1;
+                if (required > count) {
+                    sendError(request, 400, "pump_path_disabled");
                     return;
                 }
                 profile.pumpId = pumpId;
@@ -1110,6 +1112,7 @@ void WebServerController::registerApiRoutes() {
         doc["valve_hardware_present"] = settings.valveHardwarePresent;
         doc["pump_count"] = settings.pumpCount;
         doc["pump2_valve_hardware_present"] = settings.pump2ValveHardwarePresent;
+        doc["pump3_valve_hardware_present"] = settings.pump3ValveHardwarePresent;
         fillTmcSettingsJson(settings, doc.as<JsonObject>());
         fillReservoirSettingsJson(settings, doc.as<JsonObject>());
         fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
@@ -1155,6 +1158,9 @@ void WebServerController::registerApiRoutes() {
             settings.pump2ValveHardwarePresent =
                 body["pump2_valve_hardware_present"] |
                 settings.pump2ValveHardwarePresent;
+            settings.pump3ValveHardwarePresent =
+                body["pump3_valve_hardware_present"] |
+                settings.pump3ValveHardwarePresent;
             if (!applyTmcFromBody(body.as<JsonObjectConst>(), settings)) {
                 sendError(request, 400, "tmc_settings_out_of_range");
                 return;
@@ -1188,7 +1194,8 @@ void WebServerController::registerApiRoutes() {
                 pump_->setPumpCount(settings.pumpCount);
                 pump_->applyValveHardware(
                     settings.valveHardwarePresent,
-                    settings.pump2ValveHardwarePresent
+                    settings.pump2ValveHardwarePresent,
+                    settings.pump3ValveHardwarePresent
                 );
             }
             if (safety_ != nullptr) {
@@ -1264,6 +1271,14 @@ void WebServerController::registerApiRoutes() {
                             logger_->log("tmc_uart_warning", fields);
                         }
                     }
+                    if (settings.pumpCount >= 3) {
+                        if (!tmc_->applyToAddress(PUMP3_TMC_ADDRESS, config)) {
+                            JsonDocument fields;
+                            fields["error"] = tmc_->lastError();
+                            fields["pump_id"] = "pump_3";
+                            logger_->log("tmc_uart_warning", fields);
+                        }
+                    }
                 }
             }
             JsonDocument doc;
@@ -1273,6 +1288,8 @@ void WebServerController::registerApiRoutes() {
             doc["pump_count"] = settings.pumpCount;
             doc["pump2_valve_hardware_present"] =
                 settings.pump2ValveHardwarePresent;
+            doc["pump3_valve_hardware_present"] =
+                settings.pump3ValveHardwarePresent;
             doc["emergency_stop_enabled"] = settings.emergencyStopEnabled;
             fillTmcSettingsJson(settings, doc.as<JsonObject>());
             fillReservoirSettingsJson(settings, doc.as<JsonObject>());
@@ -1375,6 +1392,8 @@ void WebServerController::registerApiRoutes() {
         settingsObj["pump_count"] = settings.pumpCount;
         settingsObj["pump2_valve_hardware_present"] =
             settings.pump2ValveHardwarePresent;
+        settingsObj["pump3_valve_hardware_present"] =
+            settings.pump3ValveHardwarePresent;
         fillTmcSettingsJson(settings, settingsObj);
         fillReservoirSettingsJson(settings, settingsObj);
         fillLoadCellSettingsJson(settings, settingsObj);
@@ -1431,6 +1450,9 @@ void WebServerController::registerApiRoutes() {
                 settings.pump2ValveHardwarePresent =
                     settingsObj["pump2_valve_hardware_present"] |
                     settings.pump2ValveHardwarePresent;
+                settings.pump3ValveHardwarePresent =
+                    settingsObj["pump3_valve_hardware_present"] |
+                    settings.pump3ValveHardwarePresent;
                 if (!applyTmcFromBody(settingsObj, settings)) {
                     sendError(request, 400, "tmc_settings_out_of_range");
                     return;
@@ -1471,7 +1493,8 @@ void WebServerController::registerApiRoutes() {
                     pump_->setPumpCount(settings.pumpCount);
                     pump_->applyValveHardware(
                         settings.valveHardwarePresent,
-                        settings.pump2ValveHardwarePresent
+                        settings.pump2ValveHardwarePresent,
+                        settings.pump3ValveHardwarePresent
                     );
                 }
                 if (loadCell_ != nullptr) {
@@ -1510,6 +1533,10 @@ void WebServerController::registerApiRoutes() {
                     if (settings.driverUartEnabled && settings.pumpCount >= 2 &&
                         tmc_->isReady()) {
                         tmc_->applyToAddress(PUMP2_TMC_ADDRESS, config);
+                    }
+                    if (settings.driverUartEnabled && settings.pumpCount >= 3 &&
+                        tmc_->isReady()) {
+                        tmc_->applyToAddress(PUMP3_TMC_ADDRESS, config);
                     }
                 }
             }

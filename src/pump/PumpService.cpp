@@ -56,6 +56,20 @@ void PumpService::configureSecondPath(
     paths_[1].valve = &valve;
 }
 
+void PumpService::configureThirdPath(
+    StepperController& stepper,
+    ValveController& valve
+) {
+    paths_[2].id = kPump3Id;
+    paths_[2].pins.stepPin = PUMP3_STEP_PIN;
+    paths_[2].pins.dirPin = PUMP3_DIR_PIN;
+    paths_[2].pins.enablePin = PUMP3_ENABLE_PIN;
+    paths_[2].pins.valvePin = PUMP3_VALVE_PIN;
+    paths_[2].pins.tmcAddress = PUMP3_TMC_ADDRESS;
+    paths_[2].stepper = &stepper;
+    paths_[2].valve = &valve;
+}
+
 void PumpService::setPumpCount(uint8_t count) {
     if (count < 1) {
         count = 1;
@@ -63,21 +77,31 @@ void PumpService::setPumpCount(uint8_t count) {
     if (count > kMaxPumpPaths) {
         count = static_cast<uint8_t>(kMaxPumpPaths);
     }
-    if (count >= 2 && paths_[1].stepper == nullptr) {
-        count = 1;
+    for (uint8_t need = 2; need <= count; ++need) {
+        if (paths_[need - 1].stepper == nullptr) {
+            count = static_cast<uint8_t>(need - 1);
+            break;
+        }
     }
     pathCount_ = count;
-    if (activePumpId_ == kPump2Id && pathCount_ < 2) {
+    if (pumpIdRequiredCount(activePumpId_) > pathCount_) {
         bindPath(kDefaultPumpId);
     }
 }
 
-void PumpService::applyValveHardware(bool pump1Present, bool pump2Present) {
+void PumpService::applyValveHardware(
+    bool pump1Present,
+    bool pump2Present,
+    bool pump3Present
+) {
     if (paths_[0].valve != nullptr) {
         paths_[0].valve->begin(PUMP_VALVE_PIN, pump1Present, true);
     }
     if (paths_[1].valve != nullptr) {
         paths_[1].valve->begin(PUMP2_VALVE_PIN, pump2Present, true);
+    }
+    if (paths_[2].valve != nullptr) {
+        paths_[2].valve->begin(PUMP3_VALVE_PIN, pump3Present, true);
     }
 }
 

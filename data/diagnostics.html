@@ -45,13 +45,23 @@
             <select id="pump-count">
               <option value="1">1 — single path (default)</option>
               <option value="2">2 — second STEP/DIR/EN path</option>
+              <option value="3">3 — third STEP/DIR/EN path</option>
             </select>
           </label>
           <label class="checkbox">
             <input id="valve2-hw" type="checkbox">
             Pump 2 valve hardware present (GPIO 21)
           </label>
-          <p class="meta">Pump 2 pins: STEP 5, DIR 13, ENABLE 14. TMC UART address <code>0b01</code> on shared RX/TX 16/17. Motion is sequential (one path at a time).</p>
+          <label class="checkbox">
+            <input id="valve3-hw" type="checkbox">
+            Pump 3 valve hardware present (GPIO 12)
+          </label>
+          <p class="meta">
+            Pump 2: STEP 5, DIR 13, ENABLE 14 (TMC addr <code>0b01</code>).
+            Pump 3: STEP 22, DIR 15, ENABLE 2 (TMC addr <code>0b10</code>).
+            Shared UART RX/TX 16/17. Motion is sequential (one path at a time).
+            GPIO 15/12 are strapping pins — keep external circuitry quiet at boot.
+          </p>
         </fieldset>
         <label class="checkbox">
           <input id="estop-en" type="checkbox">

@@ -172,18 +172,22 @@ Active-low with internal pull-up. Enable in Diagnostics before relying on it.
 | 10 kΩ to `3V3` | External pull-up |
 | NO float/optical switch to `GND` | Asserts empty when closed (default active-low) |
 
-### Stepper driver control — pump 2 (optional)
+### Stepper driver control — pump 2 / pump 3 (optional)
 
-Enable **Pump count = 2** in Diagnostics. Strap the second TMC2209 UART address
-to `0b01` (MS1/MS2 per BTT silkscreen).
+Enable **Pump count = 2 or 3** in Diagnostics. Strap each extra TMC2209 UART
+address via MS1/MS2 (`0b01` for pump 2, `0b10` for pump 3).
 
-| ESP32 GPIO | TMC2209 #2 signal | Notes |
-|------------|-------------------|-------|
-| **5** | `STEP` | Second path step pulses |
-| **13** | `DIR` | Direction |
-| **14** | `EN` / `ENABLE` | Active low |
-| **21** | Valve driver (optional) | Same rules as GPIO 33 — driver only |
-| 16 / 17 | Shared UART RX/TX | Address `0b01` |
+| ESP32 GPIO | Signal | Notes |
+|------------|--------|-------|
+| **5** | Pump 2 `STEP` | |
+| **13** | Pump 2 `DIR` | |
+| **14** | Pump 2 `EN` | Active low |
+| **21** | Pump 2 valve driver (optional) | Driver only — not piezo coils |
+| **22** | Pump 3 `STEP` | |
+| **15** | Pump 3 `DIR` | Strapping pin — quiet at boot |
+| **2** | Pump 3 `EN` | Active low |
+| **12** | Pump 3 valve driver (optional) | Strapping pin — quiet at boot |
+| 16 / 17 | Shared UART RX/TX | Addresses `0b00` / `0b01` / `0b10` |
 
 ## Pin summary
 
@@ -193,10 +197,14 @@ to `0b01` (MS1/MS2 per BTT silkscreen).
 | Pump 1 DIR | 27 | Yes | Level to TMC #1 |
 | Pump 1 ENABLE | 25 | Yes | Active low |
 | Pump 1 VALVE | 33 | No | To valve driver only |
-| Pump 2 STEP | 5 | No | Enable via Diagnostics pump count = 2 |
+| Pump 2 STEP | 5 | No | Diagnostics pump count ≥ 2 |
 | Pump 2 DIR | 13 | No | |
 | Pump 2 ENABLE | 14 | No | Active low |
 | Pump 2 VALVE | 21 | No | To valve driver only |
+| Pump 3 STEP | 22 | No | Diagnostics pump count ≥ 3 |
+| Pump 3 DIR | 15 | No | Strapping |
+| Pump 3 ENABLE | 2 | No | Active low |
+| Pump 3 VALVE | 12 | No | Strapping; valve driver only |
 | ESTOP | 32 | No | Active low to GND |
 | TMC RX | 16 | No | UART (shared, up to 4 addresses) |
 | TMC TX | 17 | No | UART |
@@ -207,7 +215,7 @@ to `0b01` (MS1/MS2 per BTT silkscreen).
 | FLOW | 4 | No | Pulse input |
 
 **Motion limit:** firmware runs **one path at a time** (no concurrent STEP). Size
-the 12 V supply for a single 1.5 A/phase motor unless you validate dual-load.
+the 12 V supply for a single 1.5 A/phase motor unless you validate multi-load.
 
 ## Common mistakes
 
