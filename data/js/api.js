@@ -140,6 +140,13 @@ export function clearEventLog() {
   return requestJson("/api/events/log", { method: "DELETE" });
 }
 
+export function factoryReset(confirm = "FACTORY_RESET") {
+  return requestJson("/api/factory-reset", {
+    method: "POST",
+    body: JSON.stringify({ confirm })
+  });
+}
+
 export function tareLoadCell() {
   return requestJson("/api/loadcell/tare", { method: "POST" });
 }

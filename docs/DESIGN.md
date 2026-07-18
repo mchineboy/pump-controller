@@ -8,7 +8,8 @@ Source: project software design document (2026-07-18).
 2. **Dispense:** `target_steps = volume_ml * steps_per_ml` (step-count based, not wall-clock only).
 3. **Speed rule:** calibration speed must equal dispense speed.
 4. **Web client:** HTML + CSS + vanilla JS + ES modules + `fetch` + SSE. No React/Vue/etc.
-5. **Storage:** Preferences/NVS for settings; LittleFS for profiles, history, logs, and web assets.
+5. **Storage:** Preferences/NVS for settings **and** fluid profiles/calibration;
+   LittleFS for web assets, optional calibration history, and event logs.
 6. **Safety:** safe boot, no auto-resume after power loss, software stop, optional ESTOP later.
 
 ## Implemented
@@ -39,6 +40,19 @@ Tracked on GitHub milestone **Phase 4**, in design-doc order:
 7. Recipe engine (use-case agnostic)
 
 Product branding is use-case agnostic: **Fluid Dispensing Controller**.
+
+## Durable storage / flash survival
+
+| Data | Location | Survives `upload` | Survives `uploadfs` | Survives OTA app | Cleared by |
+|------|----------|-------------------|---------------------|------------------|------------|
+| Hardware settings | NVS `pump_settings` | Yes | Yes | Yes | Factory Reset / `erase_flash` |
+| Profiles + calibration | NVS `pump_prof` | Yes | Yes | Yes | Factory Reset / `erase_flash` |
+| Web UI assets | LittleFS | Yes | Replaced | Yes | `uploadfs` |
+| Event log / cal history | LittleFS | Yes | Lost | Yes | `uploadfs` / Factory Reset |
+
+Firmware never erases NVS on boot or upgrade. Explicit **Factory Reset**
+(`POST /api/factory-reset` with `{"confirm":"FACTORY_RESET"}`) clears NVS
+namespaces and reseeds defaults, then reboots.
 
 ## Board
 

@@ -7,7 +7,12 @@
 
 namespace {
 constexpr const char* kProfilesPath = "/profiles.json";
-}
+/** Preferences namespace (≤15 chars). Survives upload / uploadfs / OTA. */
+constexpr const char* kNvsNamespace = "pump_prof";
+constexpr const char* kNvsSchemaKey = "schema";
+constexpr const char* kNvsActiveKey = "active_id";
+constexpr const char* kNvsIdsKey = "ids";
+}  // namespace
 
 FluidProfile ProfileRepository::makeDefault(const char* id, const char* name) const {
     FluidProfile profile;
@@ -35,6 +40,15 @@ void ProfileRepository::seedDefaults() {
     profiles_.push_back(makeDefault("fluid_5", "Fluid 5"));
     profiles_.push_back(makeDefault("fluid_6", "Fluid 6"));
     activeId_ = "fluid_1";
+}
+
+String ProfileRepository::profileNvsKey(const String& id) const {
+    // NVS keys max 15 chars. Prefix keeps ids distinct from meta keys.
+    String key = String("p_") + id;
+    if (key.length() > 15) {
+        key = key.substring(0, 15);
+    }
+    return key;
 }
 
 void ProfileRepository::profileToJson(
@@ -160,22 +174,93 @@ bool ProfileRepository::profileFromJson(
     return true;
 }
 
-bool ProfileRepository::saveToFs() const {
-    JsonDocument doc;
-    doc["schema"] = Config::kProfilesSchemaVersion;
-    doc["active_id"] = activeId_;
-    JsonArray arr = doc["profiles"].to<JsonArray>();
-    for (const FluidProfile& profile : profiles_) {
-        profileToJson(profile, arr.add<JsonObject>());
-    }
-
-    File file = LittleFS.open(kProfilesPath, FILE_WRITE);
-    if (!file) {
+bool ProfileRepository::saveToNvs() const {
+    Preferences nvs;
+    if (!nvs.begin(kNvsNamespace, false)) {
         return false;
     }
-    const bool ok = serializeJson(doc, file) > 0;
-    file.close();
-    return ok;
+
+    nvs.clear();
+    nvs.putUInt(kNvsSchemaKey, static_cast<uint32_t>(Config::kProfilesSchemaVersion));
+    nvs.putString(kNvsActiveKey, activeId_);
+
+    String ids;
+    for (size_t i = 0; i < profiles_.size(); ++i) {
+        if (i > 0) {
+            ids += ',';
+        }
+        ids += profiles_[i].id;
+
+        JsonDocument doc;
+        profileToJson(profiles_[i], doc.to<JsonObject>());
+        String payload;
+        serializeJson(doc, payload);
+        if (payload.length() >= 4000) {
+            nvs.end();
+            return false;
+        }
+        if (!nvs.putString(profileNvsKey(profiles_[i].id).c_str(), payload)) {
+            nvs.end();
+            return false;
+        }
+    }
+    nvs.putString(kNvsIdsKey, ids);
+    nvs.end();
+    return true;
+}
+
+bool ProfileRepository::loadFromNvs() {
+    Preferences nvs;
+    if (!nvs.begin(kNvsNamespace, true)) {
+        return false;
+    }
+    if (!nvs.isKey(kNvsIdsKey)) {
+        nvs.end();
+        return false;
+    }
+
+    const String ids = nvs.getString(kNvsIdsKey, "");
+    if (ids.isEmpty()) {
+        nvs.end();
+        return false;
+    }
+
+    // Additive field migration: older schemas still load; missing fields get defaults.
+    (void)nvs.getUInt(kNvsSchemaKey, 0);
+
+    profiles_.clear();
+    int start = 0;
+    while (start < static_cast<int>(ids.length()) && profiles_.size() < kMaxProfiles) {
+        const int comma = ids.indexOf(',', start);
+        const String id =
+            comma < 0 ? ids.substring(start) : ids.substring(start, comma);
+        start = comma < 0 ? ids.length() : comma + 1;
+        if (id.isEmpty()) {
+            continue;
+        }
+        const String payload = nvs.getString(profileNvsKey(id).c_str(), "");
+        if (payload.isEmpty()) {
+            continue;
+        }
+        JsonDocument doc;
+        if (deserializeJson(doc, payload)) {
+            continue;
+        }
+        FluidProfile profile;
+        if (profileFromJson(doc.as<JsonVariantConst>(), profile)) {
+            profiles_.push_back(profile);
+        }
+    }
+    activeId_ = nvs.getString(kNvsActiveKey, "fluid_1");
+    nvs.end();
+
+    if (profiles_.empty()) {
+        return false;
+    }
+    if (!has(activeId_)) {
+        activeId_ = profiles_.front().id;
+    }
+    return true;
 }
 
 bool ProfileRepository::loadFromFs() {
@@ -195,12 +280,7 @@ bool ProfileRepository::loadFromFs() {
         return false;
     }
 
-    const int schema = doc["schema"] | 0;
-    if (schema < Config::kProfilesSchemaVersion) {
-        // Reseed generic Fluid 1–6 defaults once when upgrading schema.
-        return false;
-    }
-
+    // Prefer preserving calibrated data over hard reseed on older schema files.
     profiles_.clear();
     JsonArrayConst arr = doc["profiles"].as<JsonArrayConst>();
     for (JsonVariantConst item : arr) {
@@ -223,50 +303,121 @@ bool ProfileRepository::loadFromFs() {
     return true;
 }
 
+bool ProfileRepository::migrateLegacySingleProfileNvs() {
+    Preferences nvs;
+    if (!nvs.begin("pump", true)) {
+        return false;
+    }
+    if (!nvs.isKey("steps_per_ml")) {
+        nvs.end();
+        return false;
+    }
+
+    const int index = findIndex("fluid_1");
+    if (index < 0) {
+        nvs.end();
+        return false;
+    }
+
+    FluidProfile& profile = profiles_[static_cast<size_t>(index)];
+    profile.calibrated = nvs.getBool("calibrated", false);
+    profile.calibration.valid = profile.calibrated;
+    profile.calibration.stepsPerMl = nvs.getFloat("steps_per_ml", 0.0f);
+    profile.calibration.mlPerSecond = nvs.getFloat("ml_per_sec", 0.0f);
+    profile.calibration.measuredMl = nvs.getFloat("measured_ml", 0.0f);
+    profile.calibration.stepCount = nvs.getLong64("step_count", 0);
+    profile.calibration.requestedDurationMs =
+        nvs.getUInt("req_dur_ms", Config::kDefaultCalibrationDurationMs);
+    profile.calibration.actualDurationMs =
+        nvs.getUInt("act_dur_ms", Config::kDefaultCalibrationDurationMs);
+    profile.calibration.sampleCount = nvs.getUChar("sample_count", 0);
+    profile.calibration.calibratedAt = nvs.getString("calibrated_at", "");
+    profile.motor.speedStepsPerSecond =
+        nvs.getUInt("speed", Config::kDefaultSpeedStepsPerSec);
+    profile.motor.accelerationStepsPerSecondSquared =
+        nvs.getUInt("accel", Config::kDefaultAccelStepsPerSec2);
+    profile.motor.decelerationStepsPerSecondSquared =
+        nvs.getUInt("decel", Config::kDefaultAccelStepsPerSec2);
+    profile.motor.directionInverted = nvs.getBool("dir_inv", false);
+    profile.limits.minimumMl =
+        nvs.getFloat("min_ml", Config::kDefaultMinDispenseMl);
+    profile.limits.maximumMl =
+        nvs.getFloat("max_ml", Config::kDefaultMaxDispenseMl);
+    profile.calibrated =
+        profile.calibrated && profile.calibration.stepsPerMl > 0.0f;
+    nvs.end();
+    return profile.calibrated;
+}
+
 bool ProfileRepository::begin() {
     seedDefaults();
 
-    // Migrate single-profile NVS data into Fluid 1 if present.
-    Preferences nvs;
-    if (nvs.begin("pump", true)) {
-        if (nvs.isKey("steps_per_ml")) {
-            const int index = findIndex("fluid_1");
-            if (index >= 0) {
-                FluidProfile& profile = profiles_[static_cast<size_t>(index)];
-                profile.calibrated = nvs.getBool("calibrated", false);
-                profile.calibration.valid = profile.calibrated;
-                profile.calibration.stepsPerMl = nvs.getFloat("steps_per_ml", 0.0f);
-                profile.calibration.mlPerSecond = nvs.getFloat("ml_per_sec", 0.0f);
-                profile.calibration.measuredMl = nvs.getFloat("measured_ml", 0.0f);
-                profile.calibration.stepCount = nvs.getLong64("step_count", 0);
-                profile.calibration.requestedDurationMs =
-                    nvs.getUInt("req_dur_ms", Config::kDefaultCalibrationDurationMs);
-                profile.calibration.actualDurationMs =
-                    nvs.getUInt("act_dur_ms", Config::kDefaultCalibrationDurationMs);
-                profile.calibration.sampleCount = nvs.getUChar("sample_count", 0);
-                profile.calibration.calibratedAt = nvs.getString("calibrated_at", "");
-                profile.motor.speedStepsPerSecond =
-                    nvs.getUInt("speed", Config::kDefaultSpeedStepsPerSec);
-                profile.motor.accelerationStepsPerSecondSquared =
-                    nvs.getUInt("accel", Config::kDefaultAccelStepsPerSec2);
-                profile.motor.decelerationStepsPerSecondSquared =
-                    nvs.getUInt("decel", Config::kDefaultAccelStepsPerSec2);
-                profile.motor.directionInverted = nvs.getBool("dir_inv", false);
-                profile.limits.minimumMl =
-                    nvs.getFloat("min_ml", Config::kDefaultMinDispenseMl);
-                profile.limits.maximumMl =
-                    nvs.getFloat("max_ml", Config::kDefaultMaxDispenseMl);
-                profile.calibrated =
-                    profile.calibrated && profile.calibration.stepsPerMl > 0.0f;
-            }
-        }
-        nvs.end();
+    if (loadFromNvs()) {
+        return true;
     }
 
-    if (!loadFromFs()) {
-        saveToFs();
+    // One-time migration paths into NVS (source of truth going forward).
+    bool migrated = false;
+    if (loadFromFs()) {
+        migrated = true;
+    } else if (migrateLegacySingleProfileNvs()) {
+        migrated = true;
+    }
+
+    if (!saveToNvs()) {
+        return false;
+    }
+
+    if (migrated && LittleFS.exists(kProfilesPath)) {
+        // Avoid dual-source drift after successful NVS write.
+        LittleFS.remove(kProfilesPath);
     }
     return true;
+}
+
+void ProfileRepository::eraseFilesystemArtifacts() {
+    if (LittleFS.exists(kProfilesPath)) {
+        LittleFS.remove(kProfilesPath);
+    }
+
+    std::vector<String> toRemove;
+    File root = LittleFS.open("/");
+    if (root && root.isDirectory()) {
+        File file = root.openNextFile();
+        while (file) {
+            String name = file.name();
+            file.close();
+            if (!name.startsWith("/")) {
+                name = String("/") + name;
+            }
+            // ESP LittleFS may report "/history_fluid_1.json" or "history_...".
+            const int slash = name.lastIndexOf('/');
+            const String base = slash >= 0 ? name.substring(slash + 1) : name;
+            if (base.startsWith("history_") && base.endsWith(".json")) {
+                toRemove.push_back(name.startsWith("/") ? name : String("/") + name);
+            }
+            file = root.openNextFile();
+        }
+    }
+    for (const String& path : toRemove) {
+        LittleFS.remove(path);
+    }
+}
+
+bool ProfileRepository::factoryResetProfiles() {
+    Preferences nvs;
+    if (nvs.begin(kNvsNamespace, false)) {
+        nvs.clear();
+        nvs.end();
+    }
+    Preferences legacy;
+    if (legacy.begin("pump", false)) {
+        legacy.clear();
+        legacy.end();
+    }
+    eraseFilesystemArtifacts();
+    seedDefaults();
+    return saveToNvs();
 }
 
 int ProfileRepository::findIndex(const String& id) const {
@@ -307,7 +458,7 @@ bool ProfileRepository::save(const FluidProfile& profile) {
         }
         profiles_.push_back(profile);
     }
-    return saveToFs();
+    return saveToNvs();
 }
 
 bool ProfileRepository::remove(const String& id) {
@@ -319,7 +470,7 @@ bool ProfileRepository::remove(const String& id) {
     if (activeId_ == id) {
         activeId_ = profiles_.front().id;
     }
-    return saveToFs();
+    return saveToNvs();
 }
 
 FluidProfile& ProfileRepository::activeProfile() {
@@ -344,7 +495,7 @@ bool ProfileRepository::setActiveProfileId(const String& id) {
         return false;
     }
     activeId_ = id;
-    return saveToFs();
+    return saveToNvs();
 }
 
 bool ProfileRepository::loadHistory(const String& profileId, JsonDocument& doc) const {
@@ -462,5 +613,5 @@ bool ProfileRepository::importFromJson(const JsonDocument& doc) {
     if (!has(activeId_)) {
         activeId_ = profiles_.front().id;
     }
-    return saveToFs();
+    return saveToNvs();
 }

@@ -2,6 +2,7 @@ import {
   acknowledgeFault,
   calibrateLoadCell,
   clearEventLog,
+  factoryReset,
   getEventLog,
   getSettings,
   getStatus,
@@ -298,6 +299,34 @@ document.getElementById("clear-log-btn").addEventListener("click", async () => {
     await clearEventLog();
     await loadEvents();
   } catch (error) {
+    alert(error.message);
+  }
+});
+
+document.getElementById("factory-reset-btn").addEventListener("click", async () => {
+  const confirmInput = document.getElementById("factory-confirm");
+  const factoryStatus = document.getElementById("factory-status");
+  const typed = (confirmInput.value || "").trim();
+  if (typed !== "FACTORY_RESET") {
+    factoryStatus.textContent = "Type FACTORY_RESET exactly to enable reset.";
+    return;
+  }
+  if (!confirm(
+    "This erases all calibrations and hardware settings in NVS, then reboots. Continue?"
+  )) {
+    return;
+  }
+  try {
+    factoryStatus.textContent = "Resetting…";
+    await factoryReset(typed);
+    factoryStatus.textContent = "Reset complete. Device is rebooting…";
+  } catch (error) {
+    // Device may reboot before the response is fully received.
+    if (/Failed to fetch|NetworkError|abort/i.test(error.message)) {
+      factoryStatus.textContent = "Reset sent. Waiting for reboot…";
+      return;
+    }
+    factoryStatus.textContent = error.message;
     alert(error.message);
   }
 });

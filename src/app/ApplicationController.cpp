@@ -244,8 +244,8 @@ void ApplicationController::begin() {
 
     beginSafeOutputs();
 
-    if (!LittleFS.begin(true)) {
-        Serial.println("LittleFS mount failed");
+    if (!LittleFS.begin(false)) {
+        Serial.println("LittleFS mount failed (not formatting; use Factory Reset if needed)");
     }
 
     settings_.begin();

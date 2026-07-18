@@ -87,6 +87,11 @@ expectations.
 
 ## Notes
 
-- `pio run -t uploadfs` rewrites LittleFS and clears profiles/history/logs stored there.
+- Calibration and hardware settings live in **NVS** and survive `upload` /
+  `uploadfs` / OTA. Clear them only via Diagnostics **Factory Reset** (or a full
+  `erase_flash`).
+- `pio run -t uploadfs` rewrites LittleFS (web UI). Event logs and on-device
+  calibration *history files* on LittleFS are lost; profile calibrations in NVS
+  are not.
 - ENABLE polarity assumes a typical TMC2209 active-low enable.
 - Valve and emergency-stop hardware are off by default until enabled in settings.
