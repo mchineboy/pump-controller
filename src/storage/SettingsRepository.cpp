@@ -20,6 +20,9 @@ bool SettingsRepository::begin() {
     settings_.driverHoldCurrentMa = Config::kDefaultTmcHoldCurrentMa;
     settings_.driverMicrosteps = Config::kDefaultTmcMicrosteps;
     settings_.driverStealthChop = true;
+    settings_.reservoirSensorEnabled = false;
+    settings_.reservoirEmptyActiveLow = true;
+    settings_.reservoirEmptyPolicy = "block";
 
     if (!prefs.begin(kNamespace, false)) {
         return true;
@@ -44,6 +47,12 @@ bool SettingsRepository::begin() {
     settings_.webAuthEnabled = prefs.getBool("web_auth", settings_.webAuthEnabled);
     settings_.valveHardwarePresent =
         prefs.getBool("valve_hw", settings_.valveHardwarePresent);
+    settings_.reservoirSensorEnabled =
+        prefs.getBool("res_en", settings_.reservoirSensorEnabled);
+    settings_.reservoirEmptyActiveLow =
+        prefs.getBool("res_empty_lo", settings_.reservoirEmptyActiveLow);
+    settings_.reservoirEmptyPolicy =
+        prefs.getString("res_policy", settings_.reservoirEmptyPolicy);
     prefs.end();
 
     // Replace earlier project brand names with the generic product name.
@@ -73,6 +82,9 @@ bool SettingsRepository::save(const GlobalSettings& settings) {
     prefs.putBool("logging", settings_.loggingEnabled);
     prefs.putBool("web_auth", settings_.webAuthEnabled);
     prefs.putBool("valve_hw", settings_.valveHardwarePresent);
+    prefs.putBool("res_en", settings_.reservoirSensorEnabled);
+    prefs.putBool("res_empty_lo", settings_.reservoirEmptyActiveLow);
+    prefs.putString("res_policy", settings_.reservoirEmptyPolicy);
     prefs.end();
     return true;
 }

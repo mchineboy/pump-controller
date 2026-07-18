@@ -28,7 +28,8 @@ enum class FaultCode : uint8_t {
     StorageFailure,
     InvalidCalibration,
     NetworkFailure,
-    InternalError
+    InternalError,
+    ReservoirEmpty
 };
 
 inline const char* systemStateToString(SystemState state) {
@@ -64,6 +65,7 @@ inline const char* faultCodeToString(FaultCode code) {
         case FaultCode::InvalidCalibration: return "invalid_calibration";
         case FaultCode::NetworkFailure: return "network_failure";
         case FaultCode::InternalError: return "internal_error";
+        case FaultCode::ReservoirEmpty: return "reservoir_empty";
         default: return "unknown";
     }
 }

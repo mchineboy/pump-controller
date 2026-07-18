@@ -10,6 +10,7 @@ import {
 import { connectStatusStream } from "./status-stream.js";
 
 const stateEl = document.getElementById("system-state");
+const reservoirStatusEl = document.getElementById("reservoir-status");
 const estimateEl = document.getElementById("estimate");
 const calibrationMetaEl = document.getElementById("calibration-meta");
 const progressPanel = document.getElementById("progress-panel");
@@ -78,6 +79,15 @@ function renderStatus(status) {
     faultMessage.textContent = status.fault;
   } else {
     faultPanel.hidden = true;
+  }
+
+  if (status.reservoir_sensor_enabled && status.reservoir_empty) {
+    reservoirStatusEl.hidden = false;
+    reservoirStatusEl.textContent = status.reservoir_empty_warning
+      ? "Reservoir empty (warning only — dispense still allowed)"
+      : "Reservoir empty — new dispense blocked until refilled";
+  } else {
+    reservoirStatusEl.hidden = true;
   }
 }
 

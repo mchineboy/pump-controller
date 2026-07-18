@@ -168,6 +168,33 @@ bool WebServerController::applyTmcFromBody(
     return clampTmcSettings(settings);
 }
 
+void WebServerController::fillReservoirSettingsJson(
+    const GlobalSettings& settings,
+    JsonObject doc
+) const {
+    doc["reservoir_sensor_enabled"] = settings.reservoirSensorEnabled;
+    doc["reservoir_empty_active_low"] = settings.reservoirEmptyActiveLow;
+    doc["reservoir_empty_policy"] = settings.reservoirEmptyPolicy;
+}
+
+bool WebServerController::applyReservoirFromBody(
+    JsonObjectConst body,
+    GlobalSettings& settings
+) const {
+    settings.reservoirSensorEnabled =
+        body["reservoir_sensor_enabled"] | settings.reservoirSensorEnabled;
+    settings.reservoirEmptyActiveLow =
+        body["reservoir_empty_active_low"] | settings.reservoirEmptyActiveLow;
+    const char* policy =
+        body["reservoir_empty_policy"] | settings.reservoirEmptyPolicy.c_str();
+    const String policyStr = policy;
+    if (policyStr != "warn" && policyStr != "block" && policyStr != "fault") {
+        return false;
+    }
+    settings.reservoirEmptyPolicy = policyStr;
+    return true;
+}
+
 void WebServerController::begin(
     PumpService& pump,
     ProfileRepository& profiles,
@@ -176,7 +203,8 @@ void WebServerController::begin(
     ValveController& valve,
     SafetyController& safety,
     EventLogger& logger,
-    TmcDriverController& tmc
+    TmcDriverController& tmc,
+    ReservoirSensor& reservoir
 ) {
     pump_ = &pump;
     profiles_ = &profiles;
@@ -186,6 +214,7 @@ void WebServerController::begin(
     safety_ = &safety;
     logger_ = &logger;
     tmc_ = &tmc;
+    reservoir_ = &reservoir;
 
     registerApiRoutes();
     registerStaticRoutes();
@@ -254,6 +283,13 @@ void WebServerController::registerApiRoutes() {
             tmc_ != nullptr && tmc_->isReady() && tmc_->shortCircuit();
         doc["driver_open_load"] =
             tmc_ != nullptr && tmc_->isReady() && tmc_->openLoad();
+        doc["reservoir_sensor_enabled"] =
+            reservoir_ != nullptr && reservoir_->isEnabled();
+        doc["reservoir_empty"] =
+            reservoir_ != nullptr && reservoir_->isEmpty();
+        doc["reservoir_empty_warning"] = pump_->reservoirEmptyWarning();
+        doc["reservoir_empty_policy"] =
+            reservoirEmptyPolicyToString(pump_->reservoirEmptyPolicy());
         doc["ip"] = WiFi.status() == WL_CONNECTED
             ? WiFi.localIP().toString()
             : WiFi.softAPIP().toString();
@@ -743,6 +779,7 @@ void WebServerController::registerApiRoutes() {
         doc["web_auth_enabled"] = settings.webAuthEnabled;
         doc["valve_hardware_present"] = settings.valveHardwarePresent;
         fillTmcSettingsJson(settings, doc.as<JsonObject>());
+        fillReservoirSettingsJson(settings, doc.as<JsonObject>());
         sendJson(request, 200, doc);
     });
 
@@ -773,6 +810,10 @@ void WebServerController::registerApiRoutes() {
                 sendError(request, 400, "tmc_settings_out_of_range");
                 return;
             }
+            if (!applyReservoirFromBody(body.as<JsonObjectConst>(), settings)) {
+                sendError(request, 400, "reservoir_settings_invalid");
+                return;
+            }
             if (!settings_->save(settings)) {
                 sendError(request, 500, "storage_failure");
                 return;
@@ -787,6 +828,18 @@ void WebServerController::registerApiRoutes() {
             }
             if (safety_ != nullptr) {
                 safety_->begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
+            }
+            if (reservoir_ != nullptr) {
+                reservoir_->begin(
+                    PUMP_RESERVOIR_PIN,
+                    settings.reservoirSensorEnabled,
+                    settings.reservoirEmptyActiveLow
+                );
+            }
+            if (pump_ != nullptr) {
+                pump_->setReservoirEmptyPolicy(
+                    parseReservoirEmptyPolicy(settings.reservoirEmptyPolicy)
+                );
             }
             if (tmc_ != nullptr) {
                 TmcDriverConfig config;
@@ -809,6 +862,7 @@ void WebServerController::registerApiRoutes() {
             doc["valve_hardware_present"] = settings.valveHardwarePresent;
             doc["emergency_stop_enabled"] = settings.emergencyStopEnabled;
             fillTmcSettingsJson(settings, doc.as<JsonObject>());
+            fillReservoirSettingsJson(settings, doc.as<JsonObject>());
             doc["driver_uart_ready"] = tmc_ != nullptr && tmc_->isReady();
             if (tmc_ != nullptr && !tmc_->lastError().isEmpty()) {
                 doc["driver_uart_error"] = tmc_->lastError();
@@ -852,6 +906,7 @@ void WebServerController::registerApiRoutes() {
         settingsObj["emergency_stop_enabled"] = settings.emergencyStopEnabled;
         settingsObj["valve_hardware_present"] = settings.valveHardwarePresent;
         fillTmcSettingsJson(settings, settingsObj);
+        fillReservoirSettingsJson(settings, settingsObj);
         profiles_->exportToJson(doc);
         sendJson(request, 200, doc);
     });
@@ -893,8 +948,24 @@ void WebServerController::registerApiRoutes() {
                     sendError(request, 400, "tmc_settings_out_of_range");
                     return;
                 }
+                if (!applyReservoirFromBody(settingsObj, settings)) {
+                    sendError(request, 400, "reservoir_settings_invalid");
+                    return;
+                }
                 settings_->save(settings);
                 logger_->setEnabled(settings.loggingEnabled);
+                if (reservoir_ != nullptr) {
+                    reservoir_->begin(
+                        PUMP_RESERVOIR_PIN,
+                        settings.reservoirSensorEnabled,
+                        settings.reservoirEmptyActiveLow
+                    );
+                }
+                if (pump_ != nullptr) {
+                    pump_->setReservoirEmptyPolicy(
+                        parseReservoirEmptyPolicy(settings.reservoirEmptyPolicy)
+                    );
+                }
                 if (tmc_ != nullptr) {
                     TmcDriverConfig config;
                     config.enabled = settings.driverUartEnabled;

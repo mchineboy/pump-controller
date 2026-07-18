@@ -72,6 +72,25 @@
             StealthChop (quiet)
           </label>
         </fieldset>
+        <fieldset>
+          <legend>Reservoir level sensor (optional)</legend>
+          <label class="checkbox">
+            <input id="reservoir-en" type="checkbox">
+            Enable reservoir empty input (GPIO 34)
+          </label>
+          <label class="checkbox">
+            <input id="reservoir-empty-low" type="checkbox">
+            Empty signal is active-low
+          </label>
+          <label>
+            Empty policy
+            <select id="reservoir-policy">
+              <option value="warn">Warn only</option>
+              <option value="block">Block new dispense/calibrate</option>
+              <option value="fault">Fault active operations</option>
+            </select>
+          </label>
+        </fieldset>
         <div class="actions">
           <button type="submit">Save settings</button>
         </div>
@@ -80,6 +99,7 @@
       <p id="estop-live" class="status-line">ESTOP: —</p>
       <p id="tmc-live" class="status-line">TMC UART: —</p>
       <p id="tmc-diag" class="status-line">Driver flags: —</p>
+      <p id="reservoir-live" class="status-line">Reservoir: —</p>
       <div class="actions">
         <button type="button" id="inject-driver-fault-btn">Simulate driver fault</button>
         <button type="button" id="ack-fault-btn">Acknowledge fault</button>

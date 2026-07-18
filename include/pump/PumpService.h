@@ -9,6 +9,7 @@
 #include "motor/StepperController.h"
 #include "motor/TmcDriverController.h"
 #include "safety/SafetyController.h"
+#include "sensors/ReservoirSensor.h"
 #include "storage/ProfileRepository.h"
 #include "valve/ValveController.h"
 
@@ -30,6 +31,32 @@ struct CalibrationResult {
     uint8_t sampleCount = 0;
 };
 
+enum class ReservoirEmptyPolicy : uint8_t {
+    Warn,
+    Block,
+    Fault
+};
+
+inline ReservoirEmptyPolicy parseReservoirEmptyPolicy(const String& value) {
+    if (value == "warn") {
+        return ReservoirEmptyPolicy::Warn;
+    }
+    if (value == "fault") {
+        return ReservoirEmptyPolicy::Fault;
+    }
+    return ReservoirEmptyPolicy::Block;
+}
+
+inline const char* reservoirEmptyPolicyToString(ReservoirEmptyPolicy policy) {
+    switch (policy) {
+        case ReservoirEmptyPolicy::Warn: return "warn";
+        case ReservoirEmptyPolicy::Fault: return "fault";
+        case ReservoirEmptyPolicy::Block:
+        default:
+            return "block";
+    }
+}
+
 class PumpService {
 public:
     void begin(
@@ -38,10 +65,12 @@ public:
         ProfileRepository& profiles,
         SafetyController& safety,
         EventLogger& logger,
-        TmcDriverController& tmc
+        TmcDriverController& tmc,
+        ReservoirSensor& reservoir
     );
 
     void update();
+    void setReservoirEmptyPolicy(ReservoirEmptyPolicy policy);
 
     bool startDispense(const DispenseRequest& request);
     bool startCalibration(const String& profileId, uint32_t durationMs);
@@ -63,6 +92,10 @@ public:
     bool isBusy() const;
     FaultCode lastFault() const { return lastFault_; }
     const String& activeOperationId() const { return operationId_; }
+    ReservoirEmptyPolicy reservoirEmptyPolicy() const {
+        return reservoirPolicy_;
+    }
+    bool reservoirEmptyWarning() const { return reservoirEmptyWarning_; }
 
 private:
     enum class SequencePhase : uint8_t {
@@ -96,6 +129,7 @@ private:
     void completeValvePostClose();
     void pollDriverDiagnostics();
     bool driverFaultPresent() const;
+    void pollReservoir();
 
     StepperController* stepper_ = nullptr;
     ValveController* valve_ = nullptr;
@@ -103,6 +137,7 @@ private:
     SafetyController* safety_ = nullptr;
     EventLogger* logger_ = nullptr;
     TmcDriverController* tmc_ = nullptr;
+    ReservoirSensor* reservoir_ = nullptr;
 
     SystemState state_ = SystemState::Booting;
     FaultCode lastFault_ = FaultCode::None;
@@ -135,6 +170,10 @@ private:
 
     uint32_t lastDriverPollMs_ = 0;
     bool injectedDriverFault_ = false;
+
+    ReservoirEmptyPolicy reservoirPolicy_ = ReservoirEmptyPolicy::Block;
+    bool reservoirWasEmpty_ = false;
+    bool reservoirEmptyWarning_ = false;
 
     std::vector<CalibrationSample> samples_;
 };
