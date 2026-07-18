@@ -61,7 +61,8 @@ function renderOperation(operation) {
     progressLabel.textContent =
       operation.state === "completed"
         ? "Dispense completed"
-        : `Dispensing ${operation.profile_id || ""}`.trim();
+        : `Dispensing ${operation.profile_id || ""}` +
+          (operation.pump_id ? ` on ${operation.pump_id}` : "");
     progressBar.value = operation.progress_percent || 0;
     progressDetail.textContent = [
       `Target: ${operation.requested_ml ?? "—"} mL`,

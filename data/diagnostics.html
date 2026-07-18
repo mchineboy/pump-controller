@@ -38,6 +38,21 @@
           <input id="valve-hw" type="checkbox">
           Valve hardware present (GPIO valve driver interface)
         </label>
+        <fieldset>
+          <legend>Multi-pump (optional)</legend>
+          <label>
+            Pump count
+            <select id="pump-count">
+              <option value="1">1 — single path (default)</option>
+              <option value="2">2 — second STEP/DIR/EN path</option>
+            </select>
+          </label>
+          <label class="checkbox">
+            <input id="valve2-hw" type="checkbox">
+            Pump 2 valve hardware present (GPIO 21)
+          </label>
+          <p class="meta">Pump 2 pins: STEP 5, DIR 13, ENABLE 14. TMC UART address <code>0b01</code> on shared RX/TX 16/17. Motion is sequential (one path at a time).</p>
+        </fieldset>
         <label class="checkbox">
           <input id="estop-en" type="checkbox">
           Emergency stop input enabled (GPIO 32, active low to GND)

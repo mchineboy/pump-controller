@@ -13,6 +13,7 @@ FluidProfile ProfileRepository::makeDefault(const char* id, const char* name) co
     FluidProfile profile;
     profile.id = id;
     profile.name = name;
+    profile.pumpId = "pump_1";
     profile.enabled = true;
     profile.calibrated = false;
     profile.motor.speedStepsPerSecond = Config::kDefaultSpeedStepsPerSec;
@@ -42,6 +43,7 @@ void ProfileRepository::profileToJson(
 ) const {
     obj["id"] = profile.id;
     obj["name"] = profile.name;
+    obj["pump_id"] = profile.pumpId;
     obj["enabled"] = profile.enabled;
     obj["calibrated"] = profile.calibrated;
 
@@ -96,6 +98,10 @@ bool ProfileRepository::profileFromJson(
 
     profile = makeDefault(id, obj["name"] | id);
     profile.name = obj["name"] | id;
+    profile.pumpId = obj["pump_id"] | "pump_1";
+    if (profile.pumpId != "pump_1" && profile.pumpId != "pump_2") {
+        profile.pumpId = "pump_1";
+    }
     profile.enabled = obj["enabled"] | true;
     profile.calibrated = obj["calibrated"] | false;
 

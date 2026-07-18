@@ -15,6 +15,8 @@ bool SettingsRepository::begin() {
     settings_.wifiMode = "ap";
     settings_.emergencyStopEnabled = false;
     settings_.valveHardwarePresent = false;
+    settings_.pumpCount = Config::kDefaultPumpCount;
+    settings_.pump2ValveHardwarePresent = false;
     settings_.driverUartEnabled = false;
     settings_.driverRunCurrentMa = Config::kDefaultTmcRunCurrentMa;
     settings_.driverHoldCurrentMa = Config::kDefaultTmcHoldCurrentMa;
@@ -60,6 +62,17 @@ bool SettingsRepository::begin() {
     settings_.webAuthEnabled = prefs.getBool("web_auth", settings_.webAuthEnabled);
     settings_.valveHardwarePresent =
         prefs.getBool("valve_hw", settings_.valveHardwarePresent);
+    settings_.pumpCount = static_cast<uint8_t>(
+        prefs.getUChar("pump_count", settings_.pumpCount)
+    );
+    if (settings_.pumpCount < 1) {
+        settings_.pumpCount = 1;
+    }
+    if (settings_.pumpCount > Config::kMaxPumpCount) {
+        settings_.pumpCount = Config::kMaxPumpCount;
+    }
+    settings_.pump2ValveHardwarePresent =
+        prefs.getBool("valve2_hw", settings_.pump2ValveHardwarePresent);
     settings_.reservoirSensorEnabled =
         prefs.getBool("res_en", settings_.reservoirSensorEnabled);
     settings_.reservoirEmptyActiveLow =
@@ -117,6 +130,8 @@ bool SettingsRepository::save(const GlobalSettings& settings) {
     prefs.putBool("logging", settings_.loggingEnabled);
     prefs.putBool("web_auth", settings_.webAuthEnabled);
     prefs.putBool("valve_hw", settings_.valveHardwarePresent);
+    prefs.putUChar("pump_count", settings_.pumpCount);
+    prefs.putBool("valve2_hw", settings_.pump2ValveHardwarePresent);
     prefs.putBool("res_en", settings_.reservoirSensorEnabled);
     prefs.putBool("res_empty_lo", settings_.reservoirEmptyActiveLow);
     prefs.putString("res_policy", settings_.reservoirEmptyPolicy);

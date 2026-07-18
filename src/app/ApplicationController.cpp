@@ -38,6 +38,13 @@ void ApplicationController::beginSafeOutputs() {
     digitalWrite(PUMP_STEP_PIN, LOW);
     digitalWrite(PUMP_DIR_PIN, LOW);
     digitalWrite(PUMP_ENABLE_PIN, HIGH);  // driver disabled (active-low enable)
+
+    pinMode(PUMP2_STEP_PIN, OUTPUT);
+    pinMode(PUMP2_DIR_PIN, OUTPUT);
+    pinMode(PUMP2_ENABLE_PIN, OUTPUT);
+    digitalWrite(PUMP2_STEP_PIN, LOW);
+    digitalWrite(PUMP2_DIR_PIN, LOW);
+    digitalWrite(PUMP2_ENABLE_PIN, HIGH);
 }
 
 void ApplicationController::beginNetwork() {
@@ -132,6 +139,7 @@ void ApplicationController::applyTmcSettings(const GlobalSettings& settings) {
     config.holdCurrentMa = settings.driverHoldCurrentMa;
     config.microsteps = settings.driverMicrosteps;
     config.stealthChop = settings.driverStealthChop;
+    config.address = 0b00;
 
     if (!tmc_.apply(config)) {
         Serial.print("TMC2209 UART apply failed: ");
@@ -143,8 +151,22 @@ void ApplicationController::applyTmcSettings(const GlobalSettings& settings) {
     }
 
     if (config.enabled) {
-        Serial.println("TMC2209 UART configured");
+        Serial.println("TMC2209 UART configured (pump_1)");
         logger_.log("tmc_uart_ok");
+        if (settings.pumpCount >= 2) {
+            TmcDriverConfig pump2 = config;
+            pump2.address = PUMP2_TMC_ADDRESS;
+            if (!tmc_.applyToAddress(PUMP2_TMC_ADDRESS, pump2)) {
+                Serial.print("TMC2209 UART pump_2 apply failed: ");
+                Serial.println(tmc_.lastError());
+                JsonDocument fields;
+                fields["error"] = tmc_.lastError();
+                fields["pump_id"] = "pump_2";
+                logger_.log("tmc_uart_warning", fields);
+            } else {
+                Serial.println("TMC2209 UART configured (pump_2)");
+            }
+        }
     }
 }
 
@@ -233,9 +255,11 @@ void ApplicationController::begin() {
 
     const GlobalSettings settings = settings_.get();
     stepper_.begin(PUMP_STEP_PIN, PUMP_DIR_PIN, PUMP_ENABLE_PIN);
+    stepper2_.begin(PUMP2_STEP_PIN, PUMP2_DIR_PIN, PUMP2_ENABLE_PIN);
     tmc_.begin(PUMP_TMC_RX_PIN, PUMP_TMC_TX_PIN);
     applyTmcSettings(settings);
     valve_.begin(PUMP_VALVE_PIN, settings.valveHardwarePresent, true);
+    valve2_.begin(PUMP2_VALVE_PIN, settings.pump2ValveHardwarePresent, true);
     safety_.begin(PUMP_ESTOP_PIN, settings.emergencyStopEnabled);
 
     pump_.begin(
@@ -249,6 +273,8 @@ void ApplicationController::begin() {
         loadCell_,
         flow_
     );
+    pump_.configureSecondPath(stepper2_, valve2_);
+    pump_.setPumpCount(settings.pumpCount);
     applyReservoirSettings(settings);
     applyLoadCellSettings(settings);
     applyTemperatureSettings(settings);

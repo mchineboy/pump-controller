@@ -6,6 +6,7 @@
 #include "diagnostics/EventLogger.h"
 #include "models/FluidProfile.h"
 #include "models/OperationStatus.h"
+#include "models/PumpInstance.h"
 #include "motor/StepperController.h"
 #include "motor/TmcDriverController.h"
 #include "safety/SafetyController.h"
@@ -145,6 +146,10 @@ public:
         LoadCellSensor& loadCell,
         FlowSensor& flow
     );
+    /** Register optional second path hardware (pins begun by caller). */
+    void configureSecondPath(StepperController& stepper, ValveController& valve);
+    void setPumpCount(uint8_t count);
+    void applyValveHardware(bool pump1Present, bool pump2Present);
 
     void update();
     void setReservoirEmptyPolicy(ReservoirEmptyPolicy policy);
@@ -176,6 +181,10 @@ public:
     bool isBusy() const;
     FaultCode lastFault() const { return lastFault_; }
     const String& activeOperationId() const { return operationId_; }
+    const String& activePumpId() const { return activePumpId_; }
+    uint8_t pumpCount() const { return static_cast<uint8_t>(pathCount_); }
+    bool anyMotorRunning() const;
+    bool anyValveOpen() const;
     ReservoirEmptyPolicy reservoirEmptyPolicy() const {
         return reservoirPolicy_;
     }
@@ -204,6 +213,9 @@ private:
     void finishDispense();
     void completeStop();
     void applySafeOutputs();
+    bool bindPath(const String& pumpId);
+    PumpPath* findPath(const String& pumpId);
+    const PumpPath* findPath(const String& pumpId) const;
     String nextOperationId(const char* prefix);
     void logEvent(const char* event);
     bool valveShouldRun(const FluidProfile& profile) const;
@@ -221,6 +233,9 @@ private:
     void pollFeedbackDuringDispense();
     void finalizeDispenseVerification();
 
+    PumpPath paths_[kMaxPumpPaths];
+    size_t pathCount_ = 1;
+
     StepperController* stepper_ = nullptr;
     ValveController* valve_ = nullptr;
     ProfileRepository* profiles_ = nullptr;
@@ -237,6 +252,7 @@ private:
     PendingMotion pendingMotion_ = PendingMotion::None;
     String operationId_;
     String activeProfileId_;
+    String activePumpId_ = kDefaultPumpId;
     float requestedMl_ = 0.0f;
     int64_t targetSteps_ = 0;
     uint32_t operationStartMs_ = 0;

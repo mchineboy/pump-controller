@@ -167,12 +167,16 @@ export function importConfig(payload) {
 }
 
 export async function fillProfileSelect(selectEl, selectedId = null) {
-  const profiles = await getProfiles();
+  const [profiles, settings] = await Promise.all([getProfiles(), getSettings()]);
+  const showPump = (settings.pump_count ?? 1) >= 2;
   selectEl.innerHTML = "";
   profiles.forEach((profile) => {
     const option = document.createElement("option");
     option.value = profile.id;
-    option.textContent = `${profile.name}${profile.calibrated ? "" : " (uncalibrated)"}`;
+    const pumpLabel =
+      showPump && profile.pump_id ? ` · ${profile.pump_id}` : "";
+    option.textContent =
+      `${profile.name}${pumpLabel}${profile.calibrated ? "" : " (uncalibrated)"}`;
     selectEl.appendChild(option);
   });
   if (selectedId) {
