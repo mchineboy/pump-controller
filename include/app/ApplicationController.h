@@ -30,8 +30,10 @@ private:
     void applyFeedbackSettings(const GlobalSettings& settings);
 
     StepperController stepper_;
+    StepperController stepper2_;
     TmcDriverController tmc_;
     ValveController valve_;
+    ValveController valve2_;
     ReservoirSensor reservoir_;
     LoadCellSensor loadCell_;
     TemperatureSensor temperature_;

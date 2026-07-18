@@ -16,6 +16,16 @@ void PumpService::begin(
     LoadCellSensor& loadCell,
     FlowSensor& flow
 ) {
+    paths_[0].id = kDefaultPumpId;
+    paths_[0].pins.stepPin = PUMP_STEP_PIN;
+    paths_[0].pins.dirPin = PUMP_DIR_PIN;
+    paths_[0].pins.enablePin = PUMP_ENABLE_PIN;
+    paths_[0].pins.valvePin = PUMP_VALVE_PIN;
+    paths_[0].pins.tmcAddress = 0b00;
+    paths_[0].stepper = &stepper;
+    paths_[0].valve = &valve;
+    pathCount_ = 1;
+
     stepper_ = &stepper;
     valve_ = &valve;
     profiles_ = &profiles;
@@ -25,10 +35,99 @@ void PumpService::begin(
     reservoir_ = &reservoir;
     loadCell_ = &loadCell;
     flow_ = &flow;
+    activePumpId_ = kDefaultPumpId;
     applySafeOutputs();
     sequencePhase_ = SequencePhase::Idle;
     pendingMotion_ = PendingMotion::None;
     state_ = SystemState::Idle;
+}
+
+void PumpService::configureSecondPath(
+    StepperController& stepper,
+    ValveController& valve
+) {
+    paths_[1].id = kPump2Id;
+    paths_[1].pins.stepPin = PUMP2_STEP_PIN;
+    paths_[1].pins.dirPin = PUMP2_DIR_PIN;
+    paths_[1].pins.enablePin = PUMP2_ENABLE_PIN;
+    paths_[1].pins.valvePin = PUMP2_VALVE_PIN;
+    paths_[1].pins.tmcAddress = PUMP2_TMC_ADDRESS;
+    paths_[1].stepper = &stepper;
+    paths_[1].valve = &valve;
+}
+
+void PumpService::setPumpCount(uint8_t count) {
+    if (count < 1) {
+        count = 1;
+    }
+    if (count > kMaxPumpPaths) {
+        count = static_cast<uint8_t>(kMaxPumpPaths);
+    }
+    if (count >= 2 && paths_[1].stepper == nullptr) {
+        count = 1;
+    }
+    pathCount_ = count;
+    if (activePumpId_ == kPump2Id && pathCount_ < 2) {
+        bindPath(kDefaultPumpId);
+    }
+}
+
+void PumpService::applyValveHardware(bool pump1Present, bool pump2Present) {
+    if (paths_[0].valve != nullptr) {
+        paths_[0].valve->begin(PUMP_VALVE_PIN, pump1Present, true);
+    }
+    if (paths_[1].valve != nullptr) {
+        paths_[1].valve->begin(PUMP2_VALVE_PIN, pump2Present, true);
+    }
+}
+
+PumpPath* PumpService::findPath(const String& pumpId) {
+    const String id = normalizePumpId(pumpId);
+    for (size_t i = 0; i < pathCount_; ++i) {
+        if (paths_[i].id == id) {
+            return &paths_[i];
+        }
+    }
+    return nullptr;
+}
+
+const PumpPath* PumpService::findPath(const String& pumpId) const {
+    const String id = normalizePumpId(pumpId);
+    for (size_t i = 0; i < pathCount_; ++i) {
+        if (paths_[i].id == id) {
+            return &paths_[i];
+        }
+    }
+    return nullptr;
+}
+
+bool PumpService::bindPath(const String& pumpId) {
+    PumpPath* path = findPath(pumpId);
+    if (path == nullptr || path->stepper == nullptr) {
+        return false;
+    }
+    stepper_ = path->stepper;
+    valve_ = path->valve;
+    activePumpId_ = path->id;
+    return true;
+}
+
+bool PumpService::anyMotorRunning() const {
+    for (size_t i = 0; i < pathCount_; ++i) {
+        if (paths_[i].stepper != nullptr && paths_[i].stepper->isRunning()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool PumpService::anyValveOpen() const {
+    for (size_t i = 0; i < pathCount_; ++i) {
+        if (paths_[i].valve != nullptr && paths_[i].valve->isOpen()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void PumpService::setReservoirEmptyPolicy(ReservoirEmptyPolicy policy) {
@@ -61,6 +160,7 @@ void PumpService::logEvent(const char* event) {
     JsonDocument fields;
     fields["operation_id"] = operationId_;
     fields["profile_id"] = activeProfileId_;
+    fields["pump_id"] = activePumpId_;
     fields["state"] = systemStateToString(state_);
     logger_->log(event, fields);
 }
@@ -73,11 +173,19 @@ bool PumpService::isBusy() const {
 }
 
 void PumpService::applySafeOutputs() {
-    if (stepper_ != nullptr) {
-        stepper_->stopImmediate();
+    for (size_t i = 0; i < pathCount_; ++i) {
+        if (paths_[i].stepper != nullptr) {
+            paths_[i].stepper->stopImmediate();
+        }
+        if (paths_[i].valve != nullptr) {
+            paths_[i].valve->close();
+        }
     }
-    if (valve_ != nullptr) {
-        valve_->close();
+    // Keep active pointers valid for status when idle.
+    if (stepper_ == nullptr && pathCount_ > 0) {
+        stepper_ = paths_[0].stepper;
+        valve_ = paths_[0].valve;
+        activePumpId_ = paths_[0].id;
     }
     sequencePhase_ = SequencePhase::Idle;
     pendingMotion_ = PendingMotion::None;
@@ -287,6 +395,9 @@ bool PumpService::startDispense(const DispenseRequest& request) {
     if (!profile.enabled) {
         return fail(FaultCode::InternalError);
     }
+    if (!bindPath(profile.pumpId)) {
+        return fail(FaultCode::InternalError);
+    }
     if (!profile.calibrated || profile.calibration.stepsPerMl <= 0.0f) {
         return fail(FaultCode::NotCalibrated);
     }
@@ -359,6 +470,7 @@ bool PumpService::startDispense(const DispenseRequest& request) {
         JsonDocument fields;
         fields["operation_id"] = operationId_;
         fields["profile_id"] = activeProfileId_;
+        fields["pump_id"] = activePumpId_;
         fields["requested_ml"] = requestedMl_;
         fields["target_steps"] = targetSteps_;
         fields["feedback_mode"] = dispenseFeedbackModeToString(feedbackMode_);
@@ -401,6 +513,9 @@ bool PumpService::startCalibration(const String& profileId, uint32_t durationMs)
     if (!profile.enabled) {
         return fail(FaultCode::InternalError);
     }
+    if (!bindPath(profile.pumpId)) {
+        return fail(FaultCode::InternalError);
+    }
 
     operationId_ = nextOperationId("cal-");
     activeProfileId_ = profileId;
@@ -436,6 +551,7 @@ bool PumpService::startCalibration(const String& profileId, uint32_t durationMs)
         JsonDocument fields;
         fields["operation_id"] = operationId_;
         fields["profile_id"] = activeProfileId_;
+        fields["pump_id"] = activePumpId_;
         fields["duration_ms"] = durationMs;
         fields["speed"] = profile.motor.speedStepsPerSecond;
         logger_->log("calibration_started", fields);
@@ -814,6 +930,7 @@ OperationStatus PumpService::getProgress() const {
     status.operationId = operationId_;
     status.state = state_;
     status.profileId = activeProfileId_;
+    status.pumpId = activePumpId_;
     status.requestedMl = requestedMl_;
     status.targetSteps = targetSteps_;
     status.completedSteps = stepper_ != nullptr ? stepper_->stepsCompleted() : 0;

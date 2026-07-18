@@ -172,18 +172,42 @@ Active-low with internal pull-up. Enable in Diagnostics before relying on it.
 | 10 kΩ to `3V3` | External pull-up |
 | NO float/optical switch to `GND` | Asserts empty when closed (default active-low) |
 
+### Stepper driver control — pump 2 (optional)
+
+Enable **Pump count = 2** in Diagnostics. Strap the second TMC2209 UART address
+to `0b01` (MS1/MS2 per BTT silkscreen).
+
+| ESP32 GPIO | TMC2209 #2 signal | Notes |
+|------------|-------------------|-------|
+| **5** | `STEP` | Second path step pulses |
+| **13** | `DIR` | Direction |
+| **14** | `EN` / `ENABLE` | Active low |
+| **21** | Valve driver (optional) | Same rules as GPIO 33 — driver only |
+| 16 / 17 | Shared UART RX/TX | Address `0b01` |
+
 ## Pin summary
 
 | Function | GPIO | Required | Polarity / notes |
 |----------|------|----------|------------------|
-| STEP | 26 | Yes | Pulse to TMC |
-| DIR | 27 | Yes | Level to TMC |
-| ENABLE | 25 | Yes | Active low |
-| VALVE | 33 | No | To valve driver only |
+| Pump 1 STEP | 26 | Yes | Pulse to TMC #1 |
+| Pump 1 DIR | 27 | Yes | Level to TMC #1 |
+| Pump 1 ENABLE | 25 | Yes | Active low |
+| Pump 1 VALVE | 33 | No | To valve driver only |
+| Pump 2 STEP | 5 | No | Enable via Diagnostics pump count = 2 |
+| Pump 2 DIR | 13 | No | |
+| Pump 2 ENABLE | 14 | No | Active low |
+| Pump 2 VALVE | 21 | No | To valve driver only |
 | ESTOP | 32 | No | Active low to GND |
-| TMC RX | 16 | No | UART |
+| TMC RX | 16 | No | UART (shared, up to 4 addresses) |
 | TMC TX | 17 | No | UART |
 | RESERVOIR | 34 | No | External pull-up required |
+| HX711 DT | 19 | No | |
+| HX711 SCK | 18 | No | |
+| TEMP | 23 | No | DS18B20 1-Wire |
+| FLOW | 4 | No | Pulse input |
+
+**Motion limit:** firmware runs **one path at a time** (no concurrent STEP). Size
+the 12 V supply for a single 1.5 A/phase motor unless you validate dual-load.
 
 ## Common mistakes
 

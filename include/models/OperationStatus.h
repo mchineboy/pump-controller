@@ -12,6 +12,7 @@ struct OperationStatus {
     String operationId;
     SystemState state = SystemState::Idle;
     String profileId;
+    String pumpId;
     float requestedMl = 0.0f;
     float estimatedDeliveredMl = 0.0f;
     int64_t targetSteps = 0;

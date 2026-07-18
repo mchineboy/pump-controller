@@ -8,13 +8,17 @@ struct TmcDriverConfig {
     uint16_t holdCurrentMa = 400;
     uint16_t microsteps = 16;
     bool stealthChop = true;
+    uint8_t address = 0b00;
 };
 
 class TmcDriverController {
 public:
     bool begin(uint8_t rxPin, uint8_t txPin);
     bool apply(const TmcDriverConfig& config);
+    /** Apply the same electrical settings to an additional UART address. */
+    bool applyToAddress(uint8_t address, const TmcDriverConfig& config);
     bool refreshDiagnostics();
+    bool refreshDiagnostics(uint8_t address);
 
     bool isReady() const { return ready_; }
     bool isEnabled() const { return config_.enabled; }
@@ -27,6 +31,9 @@ public:
     const String& lastError() const { return lastError_; }
 
 private:
+    bool configureDriver(uint8_t address, const TmcDriverConfig& config);
+    bool readDiagnostics(uint8_t address);
+
     bool ready_ = false;
     TmcDriverConfig config_;
     String lastError_;

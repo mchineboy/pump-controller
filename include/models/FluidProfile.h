@@ -41,6 +41,8 @@ struct DispenseLimits {
 struct FluidProfile {
     String id = "fluid_1";
     String name = "Fluid 1";
+    /** Physical path this profile drives: "pump_1" (default) or "pump_2". */
+    String pumpId = "pump_1";
     bool enabled = true;
     bool calibrated = false;
     CalibrationData calibration;

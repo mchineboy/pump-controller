@@ -40,6 +40,23 @@
 #define PUMP_FLOW_PIN 4
 #endif
 
+// Optional second fluid path (enabled when GlobalSettings.pumpCount >= 2).
+#ifndef PUMP2_STEP_PIN
+#define PUMP2_STEP_PIN 5
+#endif
+#ifndef PUMP2_DIR_PIN
+#define PUMP2_DIR_PIN 13
+#endif
+#ifndef PUMP2_ENABLE_PIN
+#define PUMP2_ENABLE_PIN 14
+#endif
+#ifndef PUMP2_VALVE_PIN
+#define PUMP2_VALVE_PIN 21
+#endif
+#ifndef PUMP2_TMC_ADDRESS
+#define PUMP2_TMC_ADDRESS 0b01
+#endif
+
 namespace Config {
 constexpr const char* kDeviceName = "Fluid Dispensing Controller";
 constexpr const char* kHostname = "pump-controller";
@@ -67,4 +84,6 @@ constexpr float kDefaultFluidDensityGPerMl = 1.0f;
 constexpr float kDefaultTempWarnLowC = 5.0f;
 constexpr float kDefaultTempWarnHighC = 40.0f;
 constexpr float kDefaultFlowPulsesPerLiter = 450.0f;
+constexpr uint8_t kMaxPumpCount = 2;
+constexpr uint8_t kDefaultPumpCount = 1;
 }  // namespace Config

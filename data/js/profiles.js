@@ -10,6 +10,8 @@ import {
 
 const profileSelect = document.getElementById("profile");
 const nameInput = document.getElementById("name");
+const pumpIdSelect = document.getElementById("pump-id");
+const pumpCountNote = document.getElementById("pump-count-note");
 const enabledInput = document.getElementById("enabled");
 const speedInput = document.getElementById("speed");
 const accelInput = document.getElementById("accel");
@@ -29,6 +31,12 @@ const configStatus = document.getElementById("config-status");
 
 async function refreshValveHardwareNote() {
   const settings = await getSettings();
+  const count = settings.pump_count ?? 1;
+  pumpIdSelect.disabled = count < 2;
+  pumpCountNote.textContent =
+    count < 2
+      ? "Second pump path is disabled in Diagnostics (pump count = 1). Profiles stay on Pump 1."
+      : "Pump count = 2. Bind this profile to Pump 1 or Pump 2. Only one path moves at a time.";
   valveHwNote.textContent = settings.valve_hardware_present
     ? "Valve hardware is enabled in Diagnostics settings. Timing below applies when this profile uses the valve."
     : "Valve hardware is currently disabled in Diagnostics settings. Enable it there before profile valve timing takes effect.";
@@ -37,6 +45,7 @@ async function refreshValveHardwareNote() {
 async function loadProfile() {
   const profile = await getProfile(profileSelect.value);
   nameInput.value = profile.name;
+  pumpIdSelect.value = profile.pump_id || "pump_1";
   enabledInput.checked = profile.enabled;
   speedInput.value = profile.motor.speed_steps_per_second;
   accelInput.value = profile.motor.acceleration_steps_per_second_squared;
@@ -61,6 +70,7 @@ document.getElementById("profile-form").addEventListener("submit", async (event)
   try {
     const profile = await updateProfile(profileSelect.value, {
       name: nameInput.value,
+      pump_id: pumpIdSelect.value,
       enabled: enabledInput.checked,
       motor: {
         speed_steps_per_second: Number(speedInput.value),

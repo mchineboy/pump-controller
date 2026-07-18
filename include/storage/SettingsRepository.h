@@ -15,6 +15,9 @@ struct GlobalSettings {
     bool loggingEnabled = true;
     bool webAuthEnabled = false;
     bool valveHardwarePresent = false;
+    /** 1 = single path (default). 2 = enable second STEP/DIR/EN path. */
+    uint8_t pumpCount = 1;
+    bool pump2ValveHardwarePresent = false;
     bool reservoirSensorEnabled = false;
     bool reservoirEmptyActiveLow = true;
     // warn | block | fault

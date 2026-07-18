@@ -21,15 +21,19 @@
   <main>
     <section class="panel">
       <h1>Hardware</h1>
-      <p class="meta">ELEGOO ESP32 Dev Board · STEP/DIR/ENABLE · optional valve</p>
+      <p class="meta">ELEGOO ESP32 Dev Board · up to two STEP/DIR/ENABLE paths · optional valves</p>
       <dl class="summary">
-        <div><dt>STEP</dt><dd>GPIO 26</dd></div>
-        <div><dt>DIR</dt><dd>GPIO 27</dd></div>
-        <div><dt>ENABLE</dt><dd>GPIO 25 (active low)</dd></div>
-        <div><dt>VALVE</dt><dd>GPIO 33 (optional)</dd></div>
+        <div><dt>Pump 1 STEP</dt><dd>GPIO 26</dd></div>
+        <div><dt>Pump 1 DIR</dt><dd>GPIO 27</dd></div>
+        <div><dt>Pump 1 ENABLE</dt><dd>GPIO 25 (active low)</dd></div>
+        <div><dt>Pump 1 VALVE</dt><dd>GPIO 33 (optional)</dd></div>
+        <div><dt>Pump 2 STEP</dt><dd>GPIO 5 (optional)</dd></div>
+        <div><dt>Pump 2 DIR</dt><dd>GPIO 13 (optional)</dd></div>
+        <div><dt>Pump 2 ENABLE</dt><dd>GPIO 14 (optional, active low)</dd></div>
+        <div><dt>Pump 2 VALVE</dt><dd>GPIO 21 (optional)</dd></div>
         <div><dt>ESTOP</dt><dd>GPIO 32 (optional, active low)</dd></div>
-        <div><dt>TMC RX</dt><dd>GPIO 16 (UART, optional)</dd></div>
-        <div><dt>TMC TX</dt><dd>GPIO 17 (UART, optional)</dd></div>
+        <div><dt>TMC RX</dt><dd>GPIO 16 (UART, shared)</dd></div>
+        <div><dt>TMC TX</dt><dd>GPIO 17 (UART, shared)</dd></div>
         <div><dt>RESERVOIR</dt><dd>GPIO 34 (optional empty sense)</dd></div>
         <div><dt>HX711 DT</dt><dd>GPIO 19 (optional)</dd></div>
         <div><dt>HX711 SCK</dt><dd>GPIO 18 (optional)</dd></div>

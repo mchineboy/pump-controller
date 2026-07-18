@@ -103,6 +103,7 @@ void WebServerController::fillProfileJson(
 ) const {
     doc["id"] = profile.id;
     doc["name"] = profile.name;
+    doc["pump_id"] = profile.pumpId;
     doc["enabled"] = profile.enabled;
     doc["calibrated"] = profile.calibrated;
 
@@ -425,8 +426,15 @@ void WebServerController::registerApiRoutes() {
         } else {
             doc["active_profile"] = progress.profileId;
         }
-        doc["motor_running"] = stepper_->isRunning();
-        doc["valve_open"] = valve_->isOpen();
+        if (progress.pumpId.isEmpty()) {
+            doc["active_pump"] = nullptr;
+        } else {
+            doc["active_pump"] = progress.pumpId;
+        }
+        doc["pump_count"] =
+            settings_ != nullptr ? settings_->get().pumpCount : pump_->pumpCount();
+        doc["motor_running"] = pump_->anyMotorRunning();
+        doc["valve_open"] = pump_->anyValveOpen();
         doc["estop_enabled"] = safety_->isEnabled();
         doc["estop_active"] = safety_->isEmergencyStopActive();
         doc["driver_uart_enabled"] = tmc_ != nullptr && tmc_->isEnabled();
@@ -523,6 +531,7 @@ void WebServerController::registerApiRoutes() {
             JsonObject obj = arr.add<JsonObject>();
             obj["id"] = profile.id;
             obj["name"] = profile.name;
+            obj["pump_id"] = profile.pumpId;
             obj["enabled"] = profile.enabled;
             obj["calibrated"] = profile.calibrated;
             obj["steps_per_ml"] = profile.calibration.stepsPerMl;
@@ -586,6 +595,19 @@ void WebServerController::registerApiRoutes() {
             }
             if (body["enabled"].is<bool>()) {
                 profile.enabled = body["enabled"].as<bool>();
+            }
+            if (body["pump_id"].is<const char*>()) {
+                const String pumpId = body["pump_id"].as<const char*>();
+                if (pumpId != "pump_1" && pumpId != "pump_2") {
+                    sendError(request, 400, "invalid_pump_id");
+                    return;
+                }
+                if (pumpId == "pump_2" &&
+                    (settings_ == nullptr || settings_->get().pumpCount < 2)) {
+                    sendError(request, 400, "pump_2_disabled");
+                    return;
+                }
+                profile.pumpId = pumpId;
             }
 
             JsonObjectConst motor = body["motor"].as<JsonObjectConst>();
@@ -1055,6 +1077,7 @@ void WebServerController::registerApiRoutes() {
         doc["operation_id"] = progress.operationId;
         doc["state"] = systemStateToString(progress.state);
         doc["profile_id"] = progress.profileId;
+        doc["pump_id"] = progress.pumpId;
         doc["requested_ml"] = progress.requestedMl;
         doc["estimated_delivered_ml"] = progress.estimatedDeliveredMl;
         doc["completed_steps"] = progress.completedSteps;
@@ -1085,6 +1108,8 @@ void WebServerController::registerApiRoutes() {
         doc["logging_enabled"] = settings.loggingEnabled;
         doc["web_auth_enabled"] = settings.webAuthEnabled;
         doc["valve_hardware_present"] = settings.valveHardwarePresent;
+        doc["pump_count"] = settings.pumpCount;
+        doc["pump2_valve_hardware_present"] = settings.pump2ValveHardwarePresent;
         fillTmcSettingsJson(settings, doc.as<JsonObject>());
         fillReservoirSettingsJson(settings, doc.as<JsonObject>());
         fillLoadCellSettingsJson(settings, doc.as<JsonObject>());
@@ -1117,6 +1142,19 @@ void WebServerController::registerApiRoutes() {
                 body["emergency_stop_enabled"] | settings.emergencyStopEnabled;
             settings.valveHardwarePresent =
                 body["valve_hardware_present"] | settings.valveHardwarePresent;
+            {
+                int pumpCount = body["pump_count"] | settings.pumpCount;
+                if (pumpCount < 1) {
+                    pumpCount = 1;
+                }
+                if (pumpCount > Config::kMaxPumpCount) {
+                    pumpCount = Config::kMaxPumpCount;
+                }
+                settings.pumpCount = static_cast<uint8_t>(pumpCount);
+            }
+            settings.pump2ValveHardwarePresent =
+                body["pump2_valve_hardware_present"] |
+                settings.pump2ValveHardwarePresent;
             if (!applyTmcFromBody(body.as<JsonObjectConst>(), settings)) {
                 sendError(request, 400, "tmc_settings_out_of_range");
                 return;
@@ -1146,11 +1184,11 @@ void WebServerController::registerApiRoutes() {
                 return;
             }
             logger_->setEnabled(settings.loggingEnabled);
-            if (valve_ != nullptr) {
-                valve_->begin(
-                    PUMP_VALVE_PIN,
+            if (pump_ != nullptr) {
+                pump_->setPumpCount(settings.pumpCount);
+                pump_->applyValveHardware(
                     settings.valveHardwarePresent,
-                    true
+                    settings.pump2ValveHardwarePresent
                 );
             }
             if (safety_ != nullptr) {
@@ -1211,18 +1249,30 @@ void WebServerController::registerApiRoutes() {
                 config.holdCurrentMa = settings.driverHoldCurrentMa;
                 config.microsteps = settings.driverMicrosteps;
                 config.stealthChop = settings.driverStealthChop;
+                config.address = 0b00;
                 if (!tmc_->apply(config) && settings.driverUartEnabled) {
                     JsonDocument fields;
                     fields["error"] = tmc_->lastError();
                     logger_->log("tmc_uart_warning", fields);
                 } else if (settings.driverUartEnabled && tmc_->isReady()) {
                     logger_->log("tmc_uart_ok");
+                    if (settings.pumpCount >= 2) {
+                        if (!tmc_->applyToAddress(PUMP2_TMC_ADDRESS, config)) {
+                            JsonDocument fields;
+                            fields["error"] = tmc_->lastError();
+                            fields["pump_id"] = "pump_2";
+                            logger_->log("tmc_uart_warning", fields);
+                        }
+                    }
                 }
             }
             JsonDocument doc;
             doc["saved"] = true;
             doc["web_auth_enabled"] = settings.webAuthEnabled;
             doc["valve_hardware_present"] = settings.valveHardwarePresent;
+            doc["pump_count"] = settings.pumpCount;
+            doc["pump2_valve_hardware_present"] =
+                settings.pump2ValveHardwarePresent;
             doc["emergency_stop_enabled"] = settings.emergencyStopEnabled;
             fillTmcSettingsJson(settings, doc.as<JsonObject>());
             fillReservoirSettingsJson(settings, doc.as<JsonObject>());
@@ -1276,6 +1326,9 @@ void WebServerController::registerApiRoutes() {
         settingsObj["web_auth_enabled"] = settings.webAuthEnabled;
         settingsObj["emergency_stop_enabled"] = settings.emergencyStopEnabled;
         settingsObj["valve_hardware_present"] = settings.valveHardwarePresent;
+        settingsObj["pump_count"] = settings.pumpCount;
+        settingsObj["pump2_valve_hardware_present"] =
+            settings.pump2ValveHardwarePresent;
         fillTmcSettingsJson(settings, settingsObj);
         fillReservoirSettingsJson(settings, settingsObj);
         fillLoadCellSettingsJson(settings, settingsObj);
@@ -1319,6 +1372,19 @@ void WebServerController::registerApiRoutes() {
                 settings.valveHardwarePresent =
                     settingsObj["valve_hardware_present"] |
                     settings.valveHardwarePresent;
+                {
+                    int pumpCount = settingsObj["pump_count"] | settings.pumpCount;
+                    if (pumpCount < 1) {
+                        pumpCount = 1;
+                    }
+                    if (pumpCount > Config::kMaxPumpCount) {
+                        pumpCount = Config::kMaxPumpCount;
+                    }
+                    settings.pumpCount = static_cast<uint8_t>(pumpCount);
+                }
+                settings.pump2ValveHardwarePresent =
+                    settingsObj["pump2_valve_hardware_present"] |
+                    settings.pump2ValveHardwarePresent;
                 if (!applyTmcFromBody(settingsObj, settings)) {
                     sendError(request, 400, "tmc_settings_out_of_range");
                     return;
@@ -1356,6 +1422,11 @@ void WebServerController::registerApiRoutes() {
                     pump_->setReservoirEmptyPolicy(
                         parseReservoirEmptyPolicy(settings.reservoirEmptyPolicy)
                     );
+                    pump_->setPumpCount(settings.pumpCount);
+                    pump_->applyValveHardware(
+                        settings.valveHardwarePresent,
+                        settings.pump2ValveHardwarePresent
+                    );
                 }
                 if (loadCell_ != nullptr) {
                     loadCell_->begin(PUMP_LOADCELL_DT_PIN, PUMP_LOADCELL_SCK_PIN);
@@ -1388,7 +1459,12 @@ void WebServerController::registerApiRoutes() {
                     config.holdCurrentMa = settings.driverHoldCurrentMa;
                     config.microsteps = settings.driverMicrosteps;
                     config.stealthChop = settings.driverStealthChop;
+                    config.address = 0b00;
                     tmc_->apply(config);
+                    if (settings.driverUartEnabled && settings.pumpCount >= 2 &&
+                        tmc_->isReady()) {
+                        tmc_->applyToAddress(PUMP2_TMC_ADDRESS, config);
+                    }
                 }
             }
             if (logger_ != nullptr) {
@@ -1426,6 +1502,7 @@ void WebServerController::update() {
     doc["operation_id"] = progress.operationId;
     doc["state"] = systemStateToString(progress.state);
     doc["profile_id"] = progress.profileId;
+    doc["pump_id"] = progress.pumpId;
     doc["requested_ml"] = progress.requestedMl;
     doc["estimated_delivered_ml"] = progress.estimatedDeliveredMl;
     doc["completed_steps"] = progress.completedSteps;

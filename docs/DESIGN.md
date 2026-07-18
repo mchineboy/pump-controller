@@ -30,11 +30,11 @@ Source: project software design document (2026-07-18).
 
 ### Phase 4 (in progress)
 Tracked on GitHub milestone **Phase 4**, in design-doc order:
-1. Load-cell verification (HX711)
-2. Temperature monitoring
-3. Flow sensor
-4. Closed-loop dispensing
-5. Multi-pump support
+1. Load-cell verification (HX711) — done
+2. Temperature monitoring — done
+3. Flow sensor — done
+4. Closed-loop dispensing — done
+5. Multi-pump support — done (two paths, sequential motion; `pump_count` default 1)
 6. Automated mixing jobs
 7. Recipe engine (use-case agnostic)
 
